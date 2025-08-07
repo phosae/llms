@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Transformers - Interactive API Converter</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 LLM Transformers</h1>
+            <p>Interactive API format converter for OpenAI, Gemini, and Claude</p>
+        </header>
+
+        <main>
+            <!-- Available Transformations -->
+            <section class="transformations-section">
+                <div class="section-header">
+                    <h2>Available Transformations</h2>
+                    <div class="transformation-type-controls">
+                        <label>
+                            <input type="radio" name="transformationType" value="request" checked>
+                            Request
+                        </label>
+                        <label>
+                            <input type="radio" name="transformationType" value="response">
+                            Response
+                        </label>
+                    </div>
+                </div>
+                <div id="transformationsList" class="transformations-grid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Input/Output Section -->
+            <section class="transformation-section">
+                <div class="input-output-container">
+                    <!-- Input -->
+                    <div class="input-panel">
+                        <div class="panel-header">
+                            <h3>Input (<span id="sourceProviderLabel">Source</span>)</h3>
+                            <div class="panel-controls">
+                                <button id="loadExample" class="btn btn-secondary">Load Example</button>
+                                <button id="validateInput" class="btn btn-secondary">Validate</button>
+                                <button id="clearInput" class="btn btn-secondary">Clear</button>
+                            </div>
+                        </div>
+                        <div class="editor-container">
+                            <textarea id="inputEditor" placeholder="Paste your JSON here..."></textarea>
+                            <div class="editor-info">
+                                <span id="inputCharCount">0 characters</span>
+                                <span id="inputValidation" class="validation-status"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transform Button -->
+                    <div class="transform-section">
+                        <button id="transformBtn" class="btn btn-primary" disabled>
+                            <span class="btn-text">Transform</span>
+                            <span class="btn-loader" style="display: none;">⟳</span>
+                        </button>
+                    </div>
+
+                    <!-- Output -->
+                    <div class="output-panel">
+                        <div class="panel-header">
+                            <h3>Output (<span id="targetProviderLabel">Target</span>)</h3>
+                            <div class="panel-controls">
+                                <button id="copyOutput" class="btn btn-secondary">Copy</button>
+                                <button id="downloadOutput" class="btn btn-secondary">Download</button>
+                                <button id="clearOutput" class="btn btn-secondary">Clear</button>
+                            </div>
+                        </div>
+                        <div class="editor-container">
+                            <div id="outputDisplay" class="output-display">
+                                <div class="placeholder">Transformed JSON will appear here...</div>
+                            </div>
+                            <div class="editor-info">
+                                <span id="outputCharCount">0 characters</span>
+                                <span id="transformationTime"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Examples Section -->
+            <section class="examples-section">
+                <h3>Quick Examples</h3>
+                <div class="examples-grid">
+                    <div class="example-card">
+                        <h4>Simple Chat</h4>
+                        <p>Basic conversation with system prompt</p>
+                        <button class="btn btn-small" data-example="simple-chat">Load</button>
+                    </div>
+                    <div class="example-card">
+                        <h4>Function Calls</h4>
+                        <p>Request with tool/function definitions</p>
+                        <button class="btn btn-small" data-example="function-calls">Load</button>
+                    </div>
+                    <div class="example-card">
+                        <h4>Multi-modal</h4>
+                        <p>Text and image content</p>
+                        <button class="btn btn-small" data-example="multimodal">Load</button>
+                    </div>
+                    <div class="example-card">
+                        <h4>Streaming Response</h4>
+                        <p>Response with streaming configuration</p>
+                        <button class="btn btn-small" data-example="streaming">Load</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Usage Statistics -->
+            <section class="stats-section">
+                <h3>Usage Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalTransformations">0</div>
+                        <div class="stat-label">Total Transformations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="successRate">100%</div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgTime">0ms</div>
+                        <div class="stat-label">Avg. Transform Time</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>
+                Built with WebAssembly • 
+                <a href="https://github.com/phosae/llms" target="_blank">View Source</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Error/Success Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="wasm_exec.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
