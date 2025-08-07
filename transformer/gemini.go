@@ -115,8 +115,36 @@ func (t *GeminiTransformer) ToUnified(ctx context.Context, providerRequest inter
 	// Convert tools
 	if len(req.Tools) > 0 {
 		for _, tool := range req.Tools {
+			// Handle built-in tools
+			if tool.CodeExecution != nil {
+				unifiedTool := UnifiedTool{
+					Type:        "code_execution",
+					Name:        "codeExecution",
+					Description: "Execute code in a secure environment",
+				}
+				unified.Tools = append(unified.Tools, unifiedTool)
+			}
+
+			if tool.GoogleSearch != nil {
+				unifiedTool := UnifiedTool{
+					Type:        "google_search",
+					Name:        "googleSearch",
+					Description: "Search the web using Google Search",
+				}
+				unified.Tools = append(unified.Tools, unifiedTool)
+			}
+
+			if tool.GoogleSearchRetrieval != nil {
+				unifiedTool := UnifiedTool{
+					Type:        "google_search_retrieval",
+					Name:        "googleSearchRetrieval",
+					Description: "Search and retrieve information using Google Search with enhanced retrieval capabilities",
+				}
+				unified.Tools = append(unified.Tools, unifiedTool)
+			}
+
+			// Handle function declarations
 			if tool.FunctionDeclarations != nil {
-				// Handle function declarations
 				if funcs, ok := tool.FunctionDeclarations.([]interface{}); ok {
 					for _, f := range funcs {
 						if funcMap, ok := f.(map[string]interface{}); ok {
@@ -205,17 +233,56 @@ func (t *GeminiTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 	// Convert tools
 	if len(unifiedRequest.Tools) > 0 {
 		var functionDeclarations []interface{}
+
 		for _, unifiedTool := range unifiedRequest.Tools {
-			if unifiedTool.Type == "function" {
-				funcDecl := map[string]interface{}{
-					"name":        unifiedTool.Name,
-					"description": unifiedTool.Description,
-					"parameters":  unifiedTool.Parameters,
+			// First check if this should be a built-in tool by name, regardless of type
+			switch unifiedTool.Name {
+			case "code_interpreter", "python", "code_execution", "codeExecution":
+				req.Tools = append(req.Tools, gemini.GeminiChatTool{
+					CodeExecution: map[string]interface{}{},
+				})
+			case "web_search", "google_search", "googleSearch", "search":
+				req.Tools = append(req.Tools, gemini.GeminiChatTool{
+					GoogleSearch: map[string]interface{}{},
+				})
+			case "google_search_retrieval", "googleSearchRetrieval":
+				req.Tools = append(req.Tools, gemini.GeminiChatTool{
+					GoogleSearchRetrieval: map[string]interface{}{},
+				})
+			default:
+				// Then check by type
+				switch unifiedTool.Type {
+				case "code_execution", "codeExecution":
+					// Gemini built-in code execution tool
+					req.Tools = append(req.Tools, gemini.GeminiChatTool{
+						CodeExecution: map[string]interface{}{},
+					})
+
+				case "google_search", "googleSearch":
+					// Gemini built-in Google search tool
+					req.Tools = append(req.Tools, gemini.GeminiChatTool{
+						GoogleSearch: map[string]interface{}{},
+					})
+
+				case "google_search_retrieval", "googleSearchRetrieval":
+					// Gemini built-in Google search retrieval tool
+					req.Tools = append(req.Tools, gemini.GeminiChatTool{
+						GoogleSearchRetrieval: map[string]interface{}{},
+					})
+
+				default:
+					// Treat as regular function declaration
+					funcDecl := map[string]interface{}{
+						"name":        unifiedTool.Name,
+						"description": unifiedTool.Description,
+						"parameters":  unifiedTool.Parameters,
+					}
+					functionDeclarations = append(functionDeclarations, funcDecl)
 				}
-				functionDeclarations = append(functionDeclarations, funcDecl)
 			}
 		}
 
+		// Add function declarations if any exist
 		if len(functionDeclarations) > 0 {
 			req.Tools = append(req.Tools, gemini.GeminiChatTool{
 				FunctionDeclarations: functionDeclarations,
