@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 package main
 
 import (
@@ -6,10 +8,10 @@ import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/phosae/llms/transformer"
 	"github.com/phosae/llms/dto"
-	"github.com/phosae/llms/dto/openai"
 	"github.com/phosae/llms/dto/gemini"
+	"github.com/phosae/llms/dto/openai"
+	"github.com/phosae/llms/transformer"
 )
 
 // supportedProviders defines the list once to avoid duplication
@@ -19,14 +21,6 @@ var supportedProviders = []string{"openai", "gemini", "claude"}
 func createErrorResult(message string) map[string]interface{} {
 	return map[string]interface{}{
 		"error": message,
-	}
-}
-
-// createSuccessResult is a helper to create consistent success responses  
-func createSuccessResult(result interface{}) map[string]interface{} {
-	return map[string]interface{}{
-		"success": true,
-		"result":  result,
 	}
 }
 
@@ -48,11 +42,11 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 
 	fmt.Printf("Transform request: %s -> %s\n", sourceProvider, targetProvider)
 	ctx := context.Background()
-	
+
 	// Parse the request JSON based on source provider
 	var request interface{}
 	var err error
-	
+
 	switch sourceProvider {
 	case transformer.ProviderOpenAI:
 		req := &openai.ChatCompletionRequest{}
@@ -60,21 +54,21 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 			return createErrorResult(fmt.Sprintf("Failed to parse OpenAI request: %v", err))
 		}
 		request = req
-		
+
 	case transformer.ProviderGemini:
 		req := &gemini.GeminiChatRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return createErrorResult(fmt.Sprintf("Failed to parse Gemini request: %v", err))
 		}
 		request = req
-		
+
 	case transformer.ProviderClaude:
 		req := &dto.ClaudeRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return createErrorResult(fmt.Sprintf("Failed to parse Claude request: %v", err))
 		}
 		request = req
-		
+
 	default:
 		return map[string]interface{}{
 			"error": fmt.Sprintf("Unsupported source provider: %s", sourceProvider),
@@ -84,17 +78,17 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 	// Create transformers directly without registry
 	sourceTransformer := getTransformerForProvider(sourceProvider)
 	targetTransformer := getTransformerForProvider(targetProvider)
-	
+
 	if sourceTransformer == nil || targetTransformer == nil {
 		return createErrorResult(fmt.Sprintf("Unsupported transformation: %s -> %s", sourceProvider, targetProvider))
 	}
-	
+
 	// Convert to unified format first
 	unified, err := sourceTransformer.ToUnified(ctx, request)
 	if err != nil {
 		return createErrorResult(fmt.Sprintf("Failed to convert to unified format: %v", err))
 	}
-	
+
 	// Transform from unified to target format
 	result, err := targetTransformer.FromUnified(ctx, unified)
 	if err != nil {
@@ -134,11 +128,11 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 	responseJsonStr := args[2].String()
 
 	ctx := context.Background()
-	
+
 	// Parse the response JSON based on source provider
 	var response interface{}
 	var err error
-	
+
 	switch sourceProvider {
 	case transformer.ProviderOpenAI:
 		resp := &openai.ChatCompletionResponse{}
@@ -148,7 +142,7 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 			}
 		}
 		response = resp
-		
+
 	case transformer.ProviderGemini:
 		resp := &gemini.GeminiChatResponse{}
 		if err = json.Unmarshal([]byte(responseJsonStr), resp); err != nil {
@@ -157,7 +151,7 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 			}
 		}
 		response = resp
-		
+
 	case transformer.ProviderClaude:
 		resp := &dto.ClaudeResponse{}
 		if err = json.Unmarshal([]byte(responseJsonStr), resp); err != nil {
@@ -166,7 +160,7 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 			}
 		}
 		response = resp
-		
+
 	default:
 		return map[string]interface{}{
 			"error": fmt.Sprintf("Unsupported source provider: %s", sourceProvider),
@@ -176,11 +170,11 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 	// Create transformers directly without registry
 	sourceTransformer := getTransformerForProvider(sourceProvider)
 	targetTransformer := getTransformerForProvider(targetProvider)
-	
+
 	if sourceTransformer == nil || targetTransformer == nil {
 		return createErrorResult(fmt.Sprintf("Unsupported transformation: %s -> %s", sourceProvider, targetProvider))
 	}
-	
+
 	// Convert response to unified format first
 	unified, err := sourceTransformer.ResponseToUnified(ctx, response)
 	if err != nil {
@@ -188,7 +182,7 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 			"error": fmt.Sprintf("Failed to convert response to unified format: %v", err),
 		}
 	}
-	
+
 	// Transform from unified to target format
 	result, err := targetTransformer.ResponseFromUnified(ctx, unified)
 	if err != nil {
@@ -220,7 +214,7 @@ func getSupportedProviders(this js.Value, args []js.Value) interface{} {
 	}()
 
 	fmt.Println("getSupportedProviders called")
-	
+
 	return map[string]interface{}{
 		"success":   true,
 		"providers": supportedProviders,
@@ -236,10 +230,10 @@ func getAvailableTransformations(this js.Value, args []js.Value) interface{} {
 	}()
 
 	fmt.Println("getAvailableTransformations called")
-	
+
 	// Create all possible transformation pairs manually to avoid registry issues
 	var transformationPairs []map[string]interface{}
-	
+
 	for _, source := range supportedProviders {
 		for _, target := range supportedProviders {
 			if source != target {
@@ -250,13 +244,13 @@ func getAvailableTransformations(this js.Value, args []js.Value) interface{} {
 			}
 		}
 	}
-	
+
 	// Convert to JSON string first to ensure compatibility
 	result := map[string]interface{}{
 		"success":         true,
 		"transformations": transformationPairs,
 	}
-	
+
 	resultJson, err := json.Marshal(result)
 	if err != nil {
 		fmt.Printf("Failed to marshal transformations: %v\n", err)
@@ -265,7 +259,7 @@ func getAvailableTransformations(this js.Value, args []js.Value) interface{} {
 			"error":   fmt.Sprintf("Failed to serialize transformations: %v", err),
 		}
 	}
-	
+
 	// Return as JSON string to avoid syscall/js.ValueOf issues
 	var parsedResult map[string]interface{}
 	if err := json.Unmarshal(resultJson, &parsedResult); err != nil {
@@ -275,7 +269,7 @@ func getAvailableTransformations(this js.Value, args []js.Value) interface{} {
 			"error":   fmt.Sprintf("Failed to parse transformations: %v", err),
 		}
 	}
-	
+
 	return parsedResult
 }
 
@@ -302,7 +296,7 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 	// Parse the request JSON
 	var request interface{}
 	var err error
-	
+
 	switch provider {
 	case transformer.ProviderOpenAI:
 		req := &openai.ChatCompletionRequest{}
@@ -313,7 +307,7 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 			}
 		}
 		request = req
-		
+
 	case transformer.ProviderGemini:
 		req := &gemini.GeminiChatRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
@@ -323,7 +317,7 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 			}
 		}
 		request = req
-		
+
 	case transformer.ProviderClaude:
 		req := &dto.ClaudeRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
@@ -372,9 +366,9 @@ func getExampleRequest(this js.Value, args []js.Value) interface{} {
 	}
 
 	provider := transformer.Provider(args[0].String())
-	
+
 	var example interface{}
-	
+
 	switch provider {
 	case transformer.ProviderOpenAI:
 		example = &openai.ChatCompletionRequest{
@@ -393,7 +387,7 @@ func getExampleRequest(this js.Value, args []js.Value) interface{} {
 			Temperature: 0.7,
 			TopP:        1.0,
 		}
-		
+
 	case transformer.ProviderGemini:
 		example = &gemini.GeminiChatRequest{
 			Contents: []gemini.GeminiChatContent{
@@ -412,10 +406,10 @@ func getExampleRequest(this js.Value, args []js.Value) interface{} {
 			GenerationConfig: gemini.GeminiChatGenerationConfig{
 				MaxOutputTokens: 150,
 				Temperature:     &[]float64{0.7}[0],
-				TopP:           1.0,
+				TopP:            1.0,
 			},
 		}
-		
+
 	case transformer.ProviderClaude:
 		example = &dto.ClaudeRequest{
 			Model:       "claude-3-5-sonnet-20241022",
@@ -429,7 +423,7 @@ func getExampleRequest(this js.Value, args []js.Value) interface{} {
 				},
 			},
 		}
-		
+
 	default:
 		return map[string]interface{}{
 			"error": fmt.Sprintf("Unsupported provider: %s", provider),
@@ -460,7 +454,7 @@ func main() {
 	}()
 
 	fmt.Println("Starting LLM Transformer WASM module...")
-	
+
 	// Safely register JavaScript functions with error handling
 	safeRegister := func(name string, fn func(js.Value, []js.Value) interface{}) {
 		defer func() {
@@ -471,7 +465,7 @@ func main() {
 		js.Global().Set(name, js.FuncOf(fn))
 		fmt.Printf("Registered function: %s\n", name)
 	}
-	
+
 	safeRegister("transformRequest", transformRequest)
 	safeRegister("transformResponse", transformResponse)
 	safeRegister("getSupportedProviders", getSupportedProviders)
@@ -487,9 +481,9 @@ func main() {
 			fmt.Printf("Failed to send ready message: %v\n", r)
 		}
 	}()
-	
+
 	js.Global().Get("window").Call("postMessage", map[string]interface{}{
-		"type": "wasmReady",
+		"type":    "wasmReady",
 		"message": "LLM transformer WASM module loaded successfully",
 	}, "*")
 
@@ -497,7 +491,7 @@ func main() {
 
 	// Keep the main function running indefinitely
 	fmt.Println("WASM module ready and waiting for function calls...")
-	
+
 	// Use a blocking channel instead of setTimeout to avoid runtime issues
 	done := make(chan struct{})
 	<-done
