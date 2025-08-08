@@ -34,22 +34,22 @@ type UnifiedRequest struct {
 
 // UnifiedMessage represents a normalized message format
 type UnifiedMessage struct {
-	Role      string                   `json:"role"`
-	Content   string                   `json:"content,omitempty"`
-	Name      string                   `json:"name,omitempty"`
-	Parts     []UnifiedMessagePart     `json:"parts,omitempty"`
-	ToolCalls []UnifiedToolCall        `json:"tool_calls,omitempty"`
-	ToolCallID string                  `json:"tool_call_id,omitempty"`
+	Role       string               `json:"role"`
+	Content    string               `json:"content,omitempty"`
+	Name       string               `json:"name,omitempty"`
+	Parts      []UnifiedMessagePart `json:"parts,omitempty"`
+	ToolCalls  []UnifiedToolCall    `json:"tool_calls,omitempty"`
+	ToolCallID string               `json:"tool_call_id,omitempty"`
 }
 
 // UnifiedMessagePart represents content parts (text, image, etc.)
 type UnifiedMessagePart struct {
-	Type     string                 `json:"type"`
-	Text     string                 `json:"text,omitempty"`
-	ImageURL *UnifiedImageURL       `json:"image_url,omitempty"`
-	MediaType string                `json:"media_type,omitempty"`
-	Data     string                 `json:"data,omitempty"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	Type      string                 `json:"type"`
+	Text      string                 `json:"text,omitempty"`
+	ImageURL  *UnifiedImageURL       `json:"image_url,omitempty"`
+	MediaType string                 `json:"media_type,omitempty"`
+	Data      string                 `json:"data,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UnifiedImageURL represents image content
@@ -68,9 +68,9 @@ type UnifiedTool struct {
 
 // UnifiedToolCall represents tool invocations
 type UnifiedToolCall struct {
-	ID       string                 `json:"id,omitempty"`
-	Type     string                 `json:"type"`
-	Name     string                 `json:"name"`
+	ID        string                 `json:"id,omitempty"`
+	Type      string                 `json:"type"`
+	Name      string                 `json:"name"`
 	Arguments map[string]interface{} `json:"arguments,omitempty"`
 }
 
@@ -82,24 +82,24 @@ type UnifiedResponseFormat struct {
 
 // UnifiedResponse represents a normalized response format
 type UnifiedResponse struct {
-	ID               string                 `json:"id,omitempty"`
-	Object           string                 `json:"object,omitempty"`
-	Created          int64                  `json:"created,omitempty"`
-	Model            string                 `json:"model,omitempty"`
-	Provider         Provider               `json:"provider"`
-	Choices          []UnifiedChoice        `json:"choices"`
-	Usage            *UnifiedUsage          `json:"usage,omitempty"`
-	SystemFingerprint string                `json:"system_fingerprint,omitempty"`
-	Error            *UnifiedError          `json:"error,omitempty"`
-	Metadata         map[string]interface{} `json:"metadata,omitempty"`
+	ID                string                 `json:"id,omitempty"`
+	Object            string                 `json:"object,omitempty"`
+	Created           int64                  `json:"created,omitempty"`
+	Model             string                 `json:"model,omitempty"`
+	Provider          Provider               `json:"provider"`
+	Choices           []UnifiedChoice        `json:"choices"`
+	Usage             *UnifiedUsage          `json:"usage,omitempty"`
+	SystemFingerprint string                 `json:"system_fingerprint,omitempty"`
+	Error             *UnifiedError          `json:"error,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // UnifiedChoice represents response choices
 type UnifiedChoice struct {
-	Index        int               `json:"index"`
-	Message      UnifiedMessage    `json:"message"`
-	FinishReason string            `json:"finish_reason,omitempty"`
-	LogProbs     *UnifiedLogProbs  `json:"logprobs,omitempty"`
+	Index        int              `json:"index"`
+	Message      UnifiedMessage   `json:"message"`
+	FinishReason string           `json:"finish_reason,omitempty"`
+	LogProbs     *UnifiedLogProbs `json:"logprobs,omitempty"`
 }
 
 // UnifiedUsage represents token usage information
@@ -139,19 +139,19 @@ func (e *UnifiedError) Error() string {
 type Transformer interface {
 	// ToUnified converts provider-specific request to unified format
 	ToUnified(ctx context.Context, providerRequest interface{}) (*UnifiedRequest, error)
-	
+
 	// FromUnified converts unified request to provider-specific format
 	FromUnified(ctx context.Context, unifiedRequest *UnifiedRequest) (interface{}, error)
-	
+
 	// ResponseToUnified converts provider-specific response to unified format
 	ResponseToUnified(ctx context.Context, providerResponse interface{}) (*UnifiedResponse, error)
-	
+
 	// ResponseFromUnified converts unified response to provider-specific format
 	ResponseFromUnified(ctx context.Context, unifiedResponse *UnifiedResponse) (interface{}, error)
-	
+
 	// GetProvider returns the provider this transformer handles
 	GetProvider() Provider
-	
+
 	// ValidateRequest validates the provider-specific request
 	ValidateRequest(ctx context.Context, request interface{}) error
 }
@@ -189,7 +189,7 @@ func (r *TransformationRegistry) Transform(ctx context.Context, sourceProvider, 
 			Message: "transformer not found for source provider: " + string(sourceProvider),
 		}
 	}
-	
+
 	// Get target transformer
 	targetTransformer, exists := r.transformers[targetProvider]
 	if !exists {
@@ -198,13 +198,13 @@ func (r *TransformationRegistry) Transform(ctx context.Context, sourceProvider, 
 			Message: "transformer not found for target provider: " + string(targetProvider),
 		}
 	}
-	
+
 	// Convert source to unified format
 	unified, err := sourceTransformer.ToUnified(ctx, request)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert unified to target format
 	return targetTransformer.FromUnified(ctx, unified)
 }
@@ -219,7 +219,7 @@ func (r *TransformationRegistry) TransformResponse(ctx context.Context, sourcePr
 			Message: "transformer not found for source provider: " + string(sourceProvider),
 		}
 	}
-	
+
 	// Get target transformer
 	targetTransformer, exists := r.transformers[targetProvider]
 	if !exists {
@@ -228,13 +228,13 @@ func (r *TransformationRegistry) TransformResponse(ctx context.Context, sourcePr
 			Message: "transformer not found for target provider: " + string(targetProvider),
 		}
 	}
-	
+
 	// Convert source response to unified format
 	unified, err := sourceTransformer.ResponseToUnified(ctx, response)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert unified to target response format
 	return targetTransformer.ResponseFromUnified(ctx, unified)
 }
@@ -243,11 +243,11 @@ func (r *TransformationRegistry) TransformResponse(ctx context.Context, sourcePr
 func (r *TransformationRegistry) GetAvailableTransformations() []TransformationPair {
 	var pairs []TransformationPair
 	providers := make([]Provider, 0, len(r.transformers))
-	
+
 	for provider := range r.transformers {
 		providers = append(providers, provider)
 	}
-	
+
 	for _, source := range providers {
 		for _, target := range providers {
 			if source != target {
@@ -258,7 +258,7 @@ func (r *TransformationRegistry) GetAvailableTransformations() []TransformationP
 			}
 		}
 	}
-	
+
 	return pairs
 }
 

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/phosae/llms/dto/openai"
+	"github.com/phosae/llms/openai"
 )
 
 // OpenAITransformer handles OpenAI format transformations
@@ -27,15 +27,15 @@ func (t *OpenAITransformer) ValidateRequest(ctx context.Context, request interfa
 	if !ok {
 		return fmt.Errorf("invalid request type for OpenAI transformer")
 	}
-	
+
 	if req.Model == "" {
 		return fmt.Errorf("model is required")
 	}
-	
+
 	if len(req.Messages) == 0 {
 		return fmt.Errorf("messages cannot be empty")
 	}
-	
+
 	return nil
 }
 
@@ -244,7 +244,7 @@ func (t *OpenAITransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 		if len(unifiedMsg.ToolCalls) > 0 {
 			for _, toolCall := range unifiedMsg.ToolCalls {
 				args, _ := json.Marshal(toolCall.Arguments)
-				
+
 				msg.ToolCalls = append(msg.ToolCalls, openai.ToolCall{
 					ID:   toolCall.ID,
 					Type: openai.ToolType(toolCall.Type),
@@ -447,7 +447,7 @@ func (t *OpenAITransformer) ResponseFromUnified(ctx context.Context, unifiedResp
 		if len(unifiedChoice.Message.ToolCalls) > 0 {
 			for _, toolCall := range unifiedChoice.Message.ToolCalls {
 				args, _ := json.Marshal(toolCall.Arguments)
-				
+
 				choice.Message.ToolCalls = append(choice.Message.ToolCalls, openai.ToolCall{
 					ID:   toolCall.ID,
 					Type: openai.ToolType(toolCall.Type),
@@ -470,22 +470,22 @@ func convertAnyToMap(v interface{}) map[string]interface{} {
 	if v == nil {
 		return nil
 	}
-	
+
 	// If already a map, return it
 	if m, ok := v.(map[string]interface{}); ok {
 		return m
 	}
-	
+
 	// Try to convert via JSON marshaling/unmarshaling
 	data, err := json.Marshal(v)
 	if err != nil {
 		return nil
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil
 	}
-	
+
 	return result
 }

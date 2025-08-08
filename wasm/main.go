@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/phosae/llms/dto"
-	"github.com/phosae/llms/dto/gemini"
-	"github.com/phosae/llms/dto/openai"
+	"github.com/phosae/llms/claude"
+	"github.com/phosae/llms/gemini"
+	"github.com/phosae/llms/openai"
 	"github.com/phosae/llms/transformer"
 )
 
@@ -63,7 +63,7 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 		request = req
 
 	case transformer.ProviderClaude:
-		req := &dto.ClaudeRequest{}
+		req := &claude.ClaudeRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return createErrorResult(fmt.Sprintf("Failed to parse Claude request: %v", err))
 		}
@@ -153,7 +153,7 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 		response = resp
 
 	case transformer.ProviderClaude:
-		resp := &dto.ClaudeResponse{}
+		resp := &claude.ClaudeResponse{}
 		if err = json.Unmarshal([]byte(responseJsonStr), resp); err != nil {
 			return map[string]interface{}{
 				"error": fmt.Sprintf("Failed to parse Claude response: %v", err),
@@ -319,7 +319,7 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 		request = req
 
 	case transformer.ProviderClaude:
-		req := &dto.ClaudeRequest{}
+		req := &claude.ClaudeRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return map[string]interface{}{
 				"error":   fmt.Sprintf("Failed to parse request: %v", err),
@@ -411,12 +411,12 @@ func getExampleRequest(this js.Value, args []js.Value) interface{} {
 		}
 
 	case transformer.ProviderClaude:
-		example = &dto.ClaudeRequest{
+		example = &claude.ClaudeRequest{
 			Model:       "claude-3-5-sonnet-20241022",
 			MaxTokens:   150,
 			Temperature: &[]float64{0.7}[0],
 			System:      "You are a helpful assistant.",
-			Messages: []dto.ClaudeMessage{
+			Messages: []claude.ClaudeMessage{
 				{
 					Role:    "user",
 					Content: "Hello, how are you?",

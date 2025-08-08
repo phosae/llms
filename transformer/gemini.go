@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/phosae/llms/dto/gemini"
+	"github.com/phosae/llms/gemini"
 )
 
 // GeminiTransformer handles Gemini format transformations

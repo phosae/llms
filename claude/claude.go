@@ -1,4 +1,4 @@
-package dto
+package claude
 
 import (
 	"encoding/json"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/phosae/llms/dto"
+	"github.com/phosae/llms/claude"
 )
 
 // ClaudeTransformer handles Claude format transformations
@@ -22,7 +22,7 @@ func (t *ClaudeTransformer) GetProvider() Provider {
 
 // ValidateRequest validates the Claude request
 func (t *ClaudeTransformer) ValidateRequest(ctx context.Context, request interface{}) error {
-	req, ok := request.(*dto.ClaudeRequest)
+	req, ok := request.(*claude.ClaudeRequest)
 	if !ok {
 		return fmt.Errorf("invalid request type for Claude transformer")
 	}
@@ -44,7 +44,7 @@ func (t *ClaudeTransformer) ValidateRequest(ctx context.Context, request interfa
 
 // ToUnified converts Claude request to unified format
 func (t *ClaudeTransformer) ToUnified(ctx context.Context, providerRequest interface{}) (*UnifiedRequest, error) {
-	req, ok := providerRequest.(*dto.ClaudeRequest)
+	req, ok := providerRequest.(*claude.ClaudeRequest)
 	if !ok {
 		return nil, fmt.Errorf("invalid request type for Claude transformer")
 	}
@@ -148,7 +148,7 @@ func (t *ClaudeTransformer) ToUnified(ctx context.Context, providerRequest inter
 	// Convert tools
 	if req.Tools != nil {
 		if tools := req.GetTools(); tools != nil {
-			normalTools, _ := dto.ProcessTools(tools)
+			normalTools, _ := claude.ProcessTools(tools)
 			for _, tool := range normalTools {
 				unifiedTool := UnifiedTool{
 					Type:        "function",
@@ -166,7 +166,7 @@ func (t *ClaudeTransformer) ToUnified(ctx context.Context, providerRequest inter
 		switch tc := req.ToolChoice.(type) {
 		case string:
 			unified.ToolChoice = tc
-		case dto.ClaudeToolChoice:
+		case claude.ClaudeToolChoice:
 			if tc.Type == "tool" {
 				unified.ToolChoice = tc.Name
 			} else {
@@ -180,7 +180,7 @@ func (t *ClaudeTransformer) ToUnified(ctx context.Context, providerRequest inter
 
 // FromUnified converts unified request to Claude format
 func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *UnifiedRequest) (interface{}, error) {
-	req := &dto.ClaudeRequest{
+	req := &claude.ClaudeRequest{
 		Model:     unifiedRequest.Model,
 		MaxTokens: uint(unifiedRequest.MaxTokens),
 		Stream:    unifiedRequest.Stream,
@@ -204,7 +204,7 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 
 	// Convert messages
 	for _, unifiedMsg := range unifiedRequest.Messages {
-		msg := dto.ClaudeMessage{
+		msg := claude.ClaudeMessage{
 			Role: unifiedMsg.Role,
 		}
 
@@ -213,11 +213,11 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 			msg.SetStringContent(unifiedMsg.Content)
 		} else {
 			// Handle complex content
-			var parts []dto.ClaudeMediaMessage
+			var parts []claude.ClaudeMediaMessage
 
 			// Add text content
 			if unifiedMsg.Content != "" {
-				parts = append(parts, dto.ClaudeMediaMessage{
+				parts = append(parts, claude.ClaudeMediaMessage{
 					Type: "text",
 					Text: &unifiedMsg.Content,
 				})
@@ -233,7 +233,7 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 
 			// Add tool calls
 			for _, toolCall := range unifiedMsg.ToolCalls {
-				parts = append(parts, dto.ClaudeMediaMessage{
+				parts = append(parts, claude.ClaudeMediaMessage{
 					Type:  "tool_use",
 					Id:    toolCall.ID,
 					Name:  toolCall.Name,
@@ -243,7 +243,7 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 
 			// Handle tool results
 			if unifiedMsg.ToolCallID != "" {
-				parts = append(parts, dto.ClaudeMediaMessage{
+				parts = append(parts, claude.ClaudeMediaMessage{
 					Type:      "tool_result",
 					ToolUseId: unifiedMsg.ToolCallID,
 					Content:   unifiedMsg.Content,
@@ -260,7 +260,7 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 	if len(unifiedRequest.Tools) > 0 {
 		for _, unifiedTool := range unifiedRequest.Tools {
 			if unifiedTool.Type == "function" {
-				tool := &dto.Tool{
+				tool := &claude.Tool{
 					Name:        unifiedTool.Name,
 					Description: unifiedTool.Description,
 					InputSchema: unifiedTool.Parameters,
@@ -273,12 +273,12 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 	// Handle tool choice
 	if unifiedRequest.ToolChoice != "" {
 		if unifiedRequest.ToolChoice == "auto" || unifiedRequest.ToolChoice == "any" {
-			req.ToolChoice = &dto.ClaudeToolChoice{
+			req.ToolChoice = &claude.ClaudeToolChoice{
 				Type: unifiedRequest.ToolChoice,
 			}
 		} else {
 			// Specific tool choice
-			req.ToolChoice = &dto.ClaudeToolChoice{
+			req.ToolChoice = &claude.ClaudeToolChoice{
 				Type: "tool",
 				Name: unifiedRequest.ToolChoice,
 			}
@@ -290,7 +290,7 @@ func (t *ClaudeTransformer) FromUnified(ctx context.Context, unifiedRequest *Uni
 
 // ResponseToUnified converts Claude response to unified format
 func (t *ClaudeTransformer) ResponseToUnified(ctx context.Context, providerResponse interface{}) (*UnifiedResponse, error) {
-	resp, ok := providerResponse.(*dto.ClaudeResponse)
+	resp, ok := providerResponse.(*claude.ClaudeResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type for Claude transformer")
 	}
@@ -386,7 +386,7 @@ func (t *ClaudeTransformer) ResponseToUnified(ctx context.Context, providerRespo
 
 // ResponseFromUnified converts unified response to Claude format
 func (t *ClaudeTransformer) ResponseFromUnified(ctx context.Context, unifiedResponse *UnifiedResponse) (interface{}, error) {
-	resp := &dto.ClaudeResponse{
+	resp := &claude.ClaudeResponse{
 		Id:    unifiedResponse.ID,
 		Type:  "message",
 		Model: unifiedResponse.Model,
@@ -394,7 +394,7 @@ func (t *ClaudeTransformer) ResponseFromUnified(ctx context.Context, unifiedResp
 
 	// Handle error
 	if unifiedResponse.Error != nil {
-		resp.Error = &dto.ClaudeError{
+		resp.Error = &claude.ClaudeError{
 			Type:    unifiedResponse.Error.Type,
 			Message: unifiedResponse.Error.Message,
 		}
@@ -403,7 +403,7 @@ func (t *ClaudeTransformer) ResponseFromUnified(ctx context.Context, unifiedResp
 
 	// Convert usage
 	if unifiedResponse.Usage != nil {
-		resp.Usage = &dto.ClaudeUsage{
+		resp.Usage = &claude.ClaudeUsage{
 			InputTokens:              unifiedResponse.Usage.PromptTokens,
 			OutputTokens:             unifiedResponse.Usage.CompletionTokens,
 			CacheReadInputTokens:     unifiedResponse.Usage.CacheReadTokens,
@@ -420,7 +420,7 @@ func (t *ClaudeTransformer) ResponseFromUnified(ctx context.Context, unifiedResp
 		// Handle text content
 		if choice.Message.Content != "" {
 			text := choice.Message.Content
-			resp.Content = append(resp.Content, dto.ClaudeMediaMessage{
+			resp.Content = append(resp.Content, claude.ClaudeMediaMessage{
 				Type: "text",
 				Text: &text,
 			})
@@ -436,7 +436,7 @@ func (t *ClaudeTransformer) ResponseFromUnified(ctx context.Context, unifiedResp
 
 		// Handle tool calls
 		for _, toolCall := range choice.Message.ToolCalls {
-			resp.Content = append(resp.Content, dto.ClaudeMediaMessage{
+			resp.Content = append(resp.Content, claude.ClaudeMediaMessage{
 				Type:  "tool_use",
 				Id:    toolCall.ID,
 				Name:  toolCall.Name,
@@ -450,7 +450,7 @@ func (t *ClaudeTransformer) ResponseFromUnified(ctx context.Context, unifiedResp
 
 // Helper functions
 
-func (t *ClaudeTransformer) extractTextFromMediaMessages(parts []dto.ClaudeMediaMessage) string {
+func (t *ClaudeTransformer) extractTextFromMediaMessages(parts []claude.ClaudeMediaMessage) string {
 	var text string
 	for _, part := range parts {
 		if part.Type == "text" {
@@ -460,7 +460,7 @@ func (t *ClaudeTransformer) extractTextFromMediaMessages(parts []dto.ClaudeMedia
 	return text
 }
 
-func (t *ClaudeTransformer) convertClaudePartToUnified(part dto.ClaudeMediaMessage) *UnifiedMessagePart {
+func (t *ClaudeTransformer) convertClaudePartToUnified(part claude.ClaudeMediaMessage) *UnifiedMessagePart {
 	switch part.Type {
 	case "image":
 		if part.Source != nil {
@@ -494,21 +494,21 @@ func (t *ClaudeTransformer) convertClaudePartToUnified(part dto.ClaudeMediaMessa
 	return nil
 }
 
-func (t *ClaudeTransformer) convertUnifiedPartToClaude(part UnifiedMessagePart) *dto.ClaudeMediaMessage {
+func (t *ClaudeTransformer) convertUnifiedPartToClaude(part UnifiedMessagePart) *claude.ClaudeMediaMessage {
 	switch part.Type {
 	case "image":
-		claudePart := &dto.ClaudeMediaMessage{
+		claudePart := &claude.ClaudeMediaMessage{
 			Type: "image",
 		}
 
 		if part.Data != "" {
-			claudePart.Source = &dto.ClaudeMessageSource{
+			claudePart.Source = &claude.ClaudeMessageSource{
 				Type:      "base64",
 				MediaType: part.MediaType,
 				Data:      part.Data,
 			}
 		} else if part.ImageURL != nil {
-			claudePart.Source = &dto.ClaudeMessageSource{
+			claudePart.Source = &claude.ClaudeMessageSource{
 				Type: "url",
 				Url:  part.ImageURL.URL,
 			}
@@ -517,9 +517,9 @@ func (t *ClaudeTransformer) convertUnifiedPartToClaude(part UnifiedMessagePart) 
 		return claudePart
 
 	case "document":
-		return &dto.ClaudeMediaMessage{
+		return &claude.ClaudeMediaMessage{
 			Type: "document",
-			Source: &dto.ClaudeMessageSource{
+			Source: &claude.ClaudeMessageSource{
 				Type:      "base64",
 				MediaType: part.MediaType,
 				Data:      part.Data,
