@@ -189,21 +189,19 @@ type ClaudeToolChoice struct {
 }
 
 type ClaudeRequest struct {
-	Model             string          `json:"model"`
-	Prompt            string          `json:"prompt,omitempty"`
-	System            any             `json:"system,omitempty"`
-	Messages          []ClaudeMessage `json:"messages,omitempty"`
-	MaxTokens         uint            `json:"max_tokens,omitempty"`
-	MaxTokensToSample uint            `json:"max_tokens_to_sample,omitempty"`
-	StopSequences     []string        `json:"stop_sequences,omitempty"`
-	Temperature       *float64        `json:"temperature,omitempty"`
-	TopP              float64         `json:"top_p,omitempty"`
-	TopK              int             `json:"top_k,omitempty"`
-	//ClaudeMetadata    `json:"metadata,omitempty"`
-	Stream     bool      `json:"stream,omitempty"`
-	Tools      any       `json:"tools,omitempty"`
-	ToolChoice any       `json:"tool_choice,omitempty"`
-	Thinking   *Thinking `json:"thinking,omitempty"`
+	Model         string          `json:"model"`
+	Prompt        string          `json:"prompt,omitempty"`
+	System        any             `json:"system,omitempty"`
+	Messages      []ClaudeMessage `json:"messages,omitempty"`
+	MaxTokens     uint            `json:"max_tokens,omitempty"`
+	StopSequences []string        `json:"stop_sequences,omitempty"`
+	Temperature   *float64        `json:"temperature,omitempty"`
+	TopP          float64         `json:"top_p,omitempty"`
+	TopK          int             `json:"top_k,omitempty"`
+	Stream        bool            `json:"stream,omitempty"`
+	Tools         any             `json:"tools,omitempty"`
+	ToolChoice    any             `json:"tool_choice,omitempty"`
+	Thinking      *Thinking       `json:"thinking,omitempty"`
 }
 
 // AddTool 添加工具到请求中

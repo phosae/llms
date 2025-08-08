@@ -35,8 +35,8 @@ func (t *ClaudeTransformer) ValidateRequest(ctx context.Context, request interfa
 		return fmt.Errorf("either messages or prompt must be provided")
 	}
 
-	if req.MaxTokens == 0 && req.MaxTokensToSample == 0 {
-		return fmt.Errorf("max_tokens or max_tokens_to_sample is required")
+	if req.MaxTokens == 0 {
+		return fmt.Errorf("max_tokens is required")
 	}
 
 	return nil
@@ -57,13 +57,6 @@ func (t *ClaudeTransformer) ToUnified(ctx context.Context, providerRequest inter
 		Model:  req.Model,
 		Stream: req.Stream,
 		TopP:   &req.TopP,
-	}
-
-	// Handle max tokens
-	if req.MaxTokens > 0 {
-		unified.MaxTokens = int(req.MaxTokens)
-	} else if req.MaxTokensToSample > 0 {
-		unified.MaxTokens = int(req.MaxTokensToSample)
 	}
 
 	// Handle temperature
