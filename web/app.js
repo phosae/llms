@@ -2,6 +2,7 @@ class LLMTransformers {
     constructor() {
         this.wasmLoaded = false;
         this.currentTransformation = null;
+        this.transformDebounceTimer = null;
         this.stats = {
             totalTransformations: 0,
             successfulTransformations: 0,
@@ -98,18 +99,21 @@ class LLMTransformers {
         });
         
         // Input controls
-        document.getElementById('inputEditor').addEventListener('input', this.handleInputChange.bind(this));
-        document.getElementById('loadExample').addEventListener('click', this.loadExample.bind(this));
-        document.getElementById('validateInput').addEventListener('click', this.validateInput.bind(this));
-        document.getElementById('clearInput').addEventListener('click', this.clearInput.bind(this));
+        const inputEditor = document.getElementById('inputEditor');
+        const loadExample = document.getElementById('loadExample');
+        const validateInput = document.getElementById('validateInput');
         
-        // Transform button
-        document.getElementById('transformBtn').addEventListener('click', this.performTransformation.bind(this));
+        if (inputEditor) inputEditor.addEventListener('input', this.handleInputChange.bind(this));
+        if (loadExample) loadExample.addEventListener('click', this.loadExample.bind(this));
+        if (validateInput) validateInput.addEventListener('click', this.validateInput.bind(this));
         
         // Output controls
-        document.getElementById('copyOutput').addEventListener('click', this.copyOutput.bind(this));
-        document.getElementById('downloadOutput').addEventListener('click', this.downloadOutput.bind(this));
-        document.getElementById('clearOutput').addEventListener('click', this.clearOutput.bind(this));
+        const copyOutput = document.getElementById('copyOutput');
+        const downloadOutput = document.getElementById('downloadOutput');
+        const clearOutput = document.getElementById('clearOutput');
+        
+        if (copyOutput) copyOutput.addEventListener('click', this.copyOutput.bind(this));
+        if (downloadOutput) downloadOutput.addEventListener('click', this.downloadOutput.bind(this));
         
         // Example cards
         document.querySelectorAll('[data-example]').forEach(button => {
@@ -301,8 +305,6 @@ class LLMTransformers {
         document.getElementById('targetProviderLabel').textContent = 
             this.formatProviderName(target);
         
-        // Enable transform button
-        document.getElementById('transformBtn').disabled = false;
         
         // Clear validation status when provider changes
         document.getElementById('inputValidation').textContent = '';
@@ -310,6 +312,12 @@ class LLMTransformers {
         
         // Store current selection for transformation
         this.currentTransformation = { source, target };
+        
+        // Auto-transform if there's input content
+        const input = document.getElementById('inputEditor').value.trim();
+        if (input) {
+            this.debounceTransform();
+        }
     }
     
     handleProviderChange() {
@@ -321,8 +329,6 @@ class LLMTransformers {
         document.getElementById('targetProviderLabel').textContent = 
             targetProvider ? this.formatProviderName(targetProvider) : 'Target';
             
-        const transformBtn = document.getElementById('transformBtn');
-        transformBtn.disabled = !sourceProvider || !targetProvider || sourceProvider === targetProvider;
         
         // Clear validation status when provider changes
         document.getElementById('inputValidation').textContent = '';
@@ -353,6 +359,11 @@ class LLMTransformers {
         // Clear validation status when input changes
         document.getElementById('inputValidation').textContent = '';
         document.getElementById('inputValidation').className = 'validation-status';
+        
+        // Auto-transform if content is present and transformation is selected
+        if (input.trim() && this.currentTransformation) {
+            this.debounceTransform();
+        }
     }
     
     async validateInput() {
@@ -400,6 +411,10 @@ class LLMTransformers {
                 document.getElementById('inputEditor').value = result.example;
                 this.handleInputChange();
                 this.showToast('Example loaded successfully', 'success');
+                // Auto-transform the loaded example
+                if (this.currentTransformation) {
+                    this.debounceTransform();
+                }
             } else {
                 this.showToast('Failed to load example: ' + result.error, 'error');
             }
@@ -484,6 +499,10 @@ class LLMTransformers {
             document.getElementById('inputEditor').value = JSON.stringify(example, null, 2);
             this.handleInputChange();
             this.showToast('Example loaded successfully', 'success');
+            // Auto-transform the loaded example
+            if (this.currentTransformation) {
+                this.debounceTransform();
+            }
         } else {
             this.showToast('Example not available for this provider', 'warning');
         }
@@ -494,6 +513,18 @@ class LLMTransformers {
         document.getElementById('inputCharCount').textContent = '0 characters';
         document.getElementById('inputValidation').textContent = '';
         document.getElementById('inputValidation').className = 'validation-status';
+    }
+    
+    debounceTransform() {
+        // Clear existing timer
+        if (this.transformDebounceTimer) {
+            clearTimeout(this.transformDebounceTimer);
+        }
+        
+        // Set new timer for 1 second delay
+        this.transformDebounceTimer = setTimeout(() => {
+            this.performTransformation();
+        }, 1000);
     }
     
     async performTransformation() {
@@ -508,18 +539,9 @@ class LLMTransformers {
         const transformationType = document.querySelector('input[name="transformationType"]:checked').value;
         
         if (!input) {
-            this.showToast('Please enter some JSON to transform', 'warning');
+            this.clearOutput();
             return;
         }
-        
-        const transformBtn = document.getElementById('transformBtn');
-        const btnText = transformBtn.querySelector('.btn-text');
-        const btnLoader = transformBtn.querySelector('.btn-loader');
-        
-        // Show loading state
-        transformBtn.disabled = true;
-        btnText.style.display = 'none';
-        btnLoader.style.display = 'inline-block';
         
         const startTime = performance.now();
         
@@ -576,10 +598,7 @@ class LLMTransformers {
             // Show error in output
             this.displayError(error.message);
         } finally {
-            // Reset button state
-            transformBtn.disabled = false;
-            btnText.style.display = 'inline-block';
-            btnLoader.style.display = 'none';
+            // Cleanup is automatically handled since no button UI to reset
         }
     }
     
