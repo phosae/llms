@@ -226,6 +226,13 @@ func transformStream(this js.Value, args []js.Value) interface{} {
 		}
 		srcStream = stream
 
+	case transformer.ProviderGemini:
+		stream := &gemini.GeminiChatResponse{}
+		if err = json.Unmarshal([]byte(streamJsonStr), stream); err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to parse Gemini stream: %v", err))
+		}
+		srcStream = stream
+
 	case transformer.ProviderClaude:
 		stream := &claude.ClaudeResponse{}
 		if err = json.Unmarshal([]byte(streamJsonStr), stream); err != nil {
@@ -241,6 +248,8 @@ func transformStream(this js.Value, args []js.Value) interface{} {
 	switch targetProvider {
 	case transformer.ProviderOpenAI:
 		dstStream = &openai.ChatCompletionStreamResponse{}
+	case transformer.ProviderGemini:
+		dstStream = &gemini.GeminiChatResponse{}
 	case transformer.ProviderClaude:
 		dstStream = &claude.ClaudeResponse{}
 	default:
@@ -302,6 +311,13 @@ func transformChunk(this js.Value, args []js.Value) interface{} {
 		}
 		srcChunk = chunk
 
+	case transformer.ProviderGemini:
+		chunk := &gemini.GeminiChatResponse{}
+		if err = json.Unmarshal([]byte(chunkJsonStr), chunk); err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to parse Gemini chunk: %v", err))
+		}
+		srcChunk = chunk
+
 	case transformer.ProviderClaude:
 		chunk := &claude.ClaudeResponse{}
 		if err = json.Unmarshal([]byte(chunkJsonStr), chunk); err != nil {
@@ -317,6 +333,8 @@ func transformChunk(this js.Value, args []js.Value) interface{} {
 	switch targetProvider {
 	case transformer.ProviderOpenAI:
 		dstChunk = &openai.ChatCompletionStreamResponse{}
+	case transformer.ProviderGemini:
+		dstChunk = &gemini.GeminiChatResponse{}
 	case transformer.ProviderClaude:
 		dstChunk = &claude.ClaudeResponse{}
 	default:
@@ -432,6 +450,8 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 	switch provider {
 	case transformer.ProviderOpenAI:
 		transformerInstance = transformer.NewOpenAITransformer()
+	case transformer.ProviderGemini:
+		transformerInstance = transformer.NewGeminiTransformer()
 	case transformer.ProviderClaude:
 		transformerInstance = transformer.NewClaudeTransformer()
 	default:
@@ -448,6 +468,16 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 	switch provider {
 	case transformer.ProviderOpenAI:
 		req := &openai.ChatCompletionRequest{}
+		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
+			return map[string]interface{}{
+				"error":   fmt.Sprintf("Failed to parse request: %v", err),
+				"isValid": false,
+			}
+		}
+		request = req
+
+	case transformer.ProviderGemini:
+		req := &gemini.GeminiChatRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return map[string]interface{}{
 				"error":   fmt.Sprintf("Failed to parse request: %v", err),
@@ -488,6 +518,8 @@ func getDirectTransformer(sourceProvider transformer.Provider) transformer.Trans
 		return transformer.NewOpenAITransformer()
 	case transformer.ProviderClaude:
 		return transformer.NewClaudeTransformer()
+	case transformer.ProviderGemini:
+		return transformer.NewGeminiTransformer()
 	default:
 		return nil
 	}
