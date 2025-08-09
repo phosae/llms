@@ -27,6 +27,9 @@ class LLMTransformers {
         this.setupEventListeners();
         this.loadAvailableTransformations();
         this.updateStats();
+        
+        // Restore state from URL parameters
+        this.restoreStateFromUrl();
     }
 
     async loadWasm() {
@@ -316,6 +319,9 @@ class LLMTransformers {
         // Store current selection for transformation
         this.currentTransformation = { source, target };
 
+        // Update URL with new selection
+        this.updateUrlState();
+
         // Auto-transform if there's input content
         const input = document.getElementById('inputEditor').value.trim();
         if (input) {
@@ -353,6 +359,9 @@ class LLMTransformers {
         const type = document.querySelector('input[name="transformationType"]:checked').value;
         // Update UI based on transformation type
         console.log('Transformation type changed to:', type);
+        
+        // Update URL with new type selection
+        this.updateUrlState();
     }
 
     handleInputChange() {
@@ -366,6 +375,9 @@ class LLMTransformers {
 
         // Auto-adjust height based on content
         this.adjustEditorHeight(inputEditor);
+
+        // Update URL with new input content
+        this.updateUrlState();
 
         // Auto-transform if content is present and transformation is selected
         if (input.trim() && this.currentTransformation) {
@@ -932,6 +944,127 @@ class LLMTransformers {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // URL State Management
+    updateUrlState() {
+        const url = new URL(window.location);
+        const params = url.searchParams;
+
+        // Store transformation type
+        const transformationType = document.querySelector('input[name="transformationType"]:checked')?.value;
+        if (transformationType) {
+            params.set('type', transformationType);
+        }
+
+        // Store provider selection
+        if (this.currentTransformation) {
+            params.set('source', this.currentTransformation.source);
+            params.set('target', this.currentTransformation.target);
+        }
+
+        // Store input content (compressed using base64)
+        const inputContent = document.getElementById('inputEditor').value.trim();
+        if (inputContent) {
+            try {
+                // Compress JSON by removing whitespace if it's valid JSON
+                const compressed = JSON.stringify(JSON.parse(inputContent));
+                const encoded = btoa(encodeURIComponent(compressed));
+                params.set('input', encoded);
+            } catch (error) {
+                // If not valid JSON, store as-is (base64 encoded)
+                const encoded = btoa(encodeURIComponent(inputContent));
+                params.set('input', encoded);
+            }
+        } else {
+            params.delete('input');
+        }
+
+        // Update URL without page refresh
+        window.history.replaceState({}, '', url);
+    }
+
+    restoreStateFromUrl() {
+        const url = new URL(window.location);
+        const params = url.searchParams;
+
+        // Restore transformation type
+        const transformationType = params.get('type');
+        if (transformationType) {
+            const typeRadio = document.querySelector(`input[name="transformationType"][value="${transformationType}"]`);
+            if (typeRadio) {
+                typeRadio.checked = true;
+            }
+        }
+
+        // Restore input content
+        const inputParam = params.get('input');
+        if (inputParam) {
+            try {
+                const decoded = decodeURIComponent(atob(inputParam));
+                document.getElementById('inputEditor').value = decoded;
+                
+                // Trigger input change handler to update character count and adjust height
+                const inputEditor = document.getElementById('inputEditor');
+                this.adjustEditorHeight(inputEditor);
+                document.getElementById('inputCharCount').textContent = `${decoded.length} characters`;
+                
+                // Auto-format the restored JSON content
+                this.autoFormatJson();
+            } catch (error) {
+                console.error('Failed to restore input from URL:', error);
+            }
+        }
+
+        // Restore provider selection
+        const source = params.get('source');
+        const target = params.get('target');
+        if (source && target) {
+            // Set the transformation after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                this.selectTransformationByParams(source, target);
+            }, 100);
+        }
+    }
+
+    selectTransformationByParams(source, target) {
+        // Find and activate the appropriate transformation card
+        const cards = document.querySelectorAll('.transformation-card');
+        cards.forEach(card => {
+            card.classList.remove('active');
+        });
+
+        // Update provider labels
+        document.getElementById('sourceProviderLabel').textContent = this.formatProviderName(source);
+        document.getElementById('targetProviderLabel').textContent = this.formatProviderName(target);
+
+        // Store current selection
+        this.currentTransformation = { source, target };
+
+        // Find and activate the matching card
+        cards.forEach(card => {
+            // Get the card's innerHTML to check the structure
+            const cardHtml = card.innerHTML;
+            
+            // Extract the source and target from the card structure
+            // Cards have structure: <div>Source</div><div>→</div><div>Target</div>
+            const divs = card.querySelectorAll('div');
+            if (divs.length >= 3) {
+                const cardSource = divs[0].textContent.trim();
+                const cardTarget = divs[2].textContent.trim();
+                
+                if (cardSource === this.formatProviderName(source) && 
+                    cardTarget === this.formatProviderName(target)) {
+                    card.classList.add('active');
+                }
+            }
+        });
+
+        // Auto-transform if there's input content
+        const input = document.getElementById('inputEditor').value.trim();
+        if (input) {
+            this.debounceTransform();
+        }
     }
 }
 
