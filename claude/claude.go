@@ -6,16 +6,6 @@ import (
 	"github.com/phosae/llms/common"
 )
 
-func Any2Type[T any](v any) (T, error) {
-	jsonData, err := json.Marshal(v)
-	if err != nil {
-		return *new(T), err
-	}
-	var t T
-	err = json.Unmarshal(jsonData, &t)
-	return t, err
-}
-
 type ClaudeMetadata struct {
 	UserId string `json:"user_id"`
 }
@@ -99,7 +89,7 @@ func (c *ClaudeMediaMessage) SetContent(content any) {
 }
 
 func (c *ClaudeMediaMessage) ParseMediaContent() []ClaudeMediaMessage {
-	mediaContent, _ := Any2Type[[]ClaudeMediaMessage](c.Content)
+	mediaContent, _ := common.Any2Type[[]ClaudeMediaMessage](c.Content)
 	return mediaContent
 }
 
@@ -154,7 +144,7 @@ func (c *ClaudeMessage) SetStringContent(content string) {
 }
 
 func (c *ClaudeMessage) ParseContent() ([]ClaudeMediaMessage, error) {
-	return Any2Type[[]ClaudeMediaMessage](c.Content)
+	return common.Any2Type[[]ClaudeMediaMessage](c.Content)
 }
 
 type Tool struct {
@@ -288,7 +278,7 @@ func (c *ClaudeRequest) SetStringSystem(system string) {
 }
 
 func (c *ClaudeRequest) ParseSystem() []ClaudeMediaMessage {
-	mediaContent, _ := Any2Type[[]ClaudeMediaMessage](c.System)
+	mediaContent, _ := common.Any2Type[[]ClaudeMediaMessage](c.System)
 	return mediaContent
 }
 
