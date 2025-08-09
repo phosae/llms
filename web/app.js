@@ -43,6 +43,9 @@ class LLMTransformers {
                             getSupportedProviders: typeof getSupportedProviders,
                             getAvailableTransformations: typeof getAvailableTransformations,
                             transformRequest: typeof transformRequest,
+                            transformResponse: typeof transformResponse,
+                            transformStream: typeof transformStream,
+                            transformChunk: typeof transformChunk,
                         });
                         resolve();
                     }, 100);
@@ -548,14 +551,38 @@ class LLMTransformers {
             let result;
 
             // Check if WASM is available and functions exist
-            if (!this.wasmLoaded || typeof transformRequest !== 'function' || typeof transformResponse !== 'function') {
+            if (!this.wasmLoaded) {
                 throw new Error('WASM transformation functions are not available. Please reload the page.');
             }
 
-            if (transformationType === 'request') {
-                result = transformRequest(sourceProvider, targetProvider, input);
-            } else {
-                result = transformResponse(sourceProvider, targetProvider, input);
+            // Use the appropriate function based on transformation type
+            switch (transformationType) {
+                case 'request':
+                    if (typeof transformRequest !== 'function') {
+                        throw new Error('transformRequest function is not available');
+                    }
+                    result = transformRequest(sourceProvider, targetProvider, input);
+                    break;
+                case 'response':
+                    if (typeof transformResponse !== 'function') {
+                        throw new Error('transformResponse function is not available');
+                    }
+                    result = transformResponse(sourceProvider, targetProvider, input);
+                    break;
+                case 'stream':
+                    if (typeof transformStream !== 'function') {
+                        throw new Error('transformStream function is not available');
+                    }
+                    result = transformStream(sourceProvider, targetProvider, input);
+                    break;
+                case 'chunk':
+                    if (typeof transformChunk !== 'function') {
+                        throw new Error('transformChunk function is not available');
+                    }
+                    result = transformChunk(sourceProvider, targetProvider, input);
+                    break;
+                default:
+                    throw new Error('Unknown transformation type: ' + transformationType);
             }
 
             const endTime = performance.now();

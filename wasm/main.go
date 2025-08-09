@@ -44,7 +44,8 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 	ctx := context.Background()
 
 	// Parse the request JSON based on source provider
-	var request interface{}
+	var srcRequest interface{}
+	var dstRequest interface{}
 	var err error
 
 	switch sourceProvider {
@@ -53,68 +54,54 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return createErrorResult(fmt.Sprintf("Failed to parse OpenAI request: %v", err))
 		}
-		request = req
+		srcRequest = req
 
 	case transformer.ProviderGemini:
 		req := &gemini.GeminiChatRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return createErrorResult(fmt.Sprintf("Failed to parse Gemini request: %v", err))
 		}
-		request = req
+		srcRequest = req
 
 	case transformer.ProviderClaude:
 		req := &claude.ClaudeRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return createErrorResult(fmt.Sprintf("Failed to parse Claude request: %v", err))
 		}
-		request = req
+		srcRequest = req
 
 	default:
-		return map[string]interface{}{
-			"error": fmt.Sprintf("Unsupported source provider: %s", sourceProvider),
-		}
+		return createErrorResult(fmt.Sprintf("Unsupported source provider: %s", sourceProvider))
 	}
 
-	// Create transformers directly without registry
-	sourceTransformer := getTransformerForProvider(sourceProvider)
-	targetTransformer := getTransformerForProvider(targetProvider)
-
-	claudeSourceTransformer, ok := sourceTransformer.(*transformer.ClaudeTransformer)
-	if ok && targetProvider == transformer.ProviderOpenAI {
-		dstOaiReq := &openai.ChatCompletionRequest{}
-		err := claudeSourceTransformer.RequestToOpenAI(ctx, request.(*claude.ClaudeRequest), dstOaiReq)
-		if err != nil {
-			return createErrorResult(fmt.Sprintf("Failed to convert Claude request to OpenAI request: %v", err))
-		}
-		dstOaiReqJson, _ := json.Marshal(dstOaiReq)
-		return map[string]interface{}{
-			"success": true,
-			"result":  string(dstOaiReqJson),
-		}
+	// Create destination request object
+	switch targetProvider {
+	case transformer.ProviderOpenAI:
+		dstRequest = &openai.ChatCompletionRequest{}
+	case transformer.ProviderGemini:
+		dstRequest = &gemini.GeminiChatRequest{}
+	case transformer.ProviderClaude:
+		dstRequest = &claude.ClaudeRequest{}
+	default:
+		return createErrorResult(fmt.Sprintf("Unsupported target provider: %s", targetProvider))
 	}
 
-	if sourceTransformer == nil || targetTransformer == nil {
-		return createErrorResult(fmt.Sprintf("Unsupported transformation: %s -> %s", sourceProvider, targetProvider))
+	// Get direct transformer
+	transformerInstance := getDirectTransformer(sourceProvider)
+	if transformerInstance == nil {
+		return createErrorResult(fmt.Sprintf("No transformer available for %s -> %s", sourceProvider, targetProvider))
 	}
 
-	// Convert to unified format first
-	unified, err := sourceTransformer.ToUnified(ctx, request)
+	// Perform direct transformation
+	err = transformerInstance.Do(ctx, transformer.TransformerTypeRequest, srcRequest, dstRequest)
 	if err != nil {
-		return createErrorResult(fmt.Sprintf("Failed to convert to unified format: %v", err))
-	}
-
-	// Transform from unified to target format
-	result, err := targetTransformer.FromUnified(ctx, unified)
-	if err != nil {
-		return createErrorResult(fmt.Sprintf("Failed to convert from unified format: %v", err))
+		return createErrorResult(fmt.Sprintf("Failed to transform request: %v", err))
 	}
 
 	// Convert result to JSON
-	resultJson, err := json.MarshalIndent(result, "", "  ")
+	resultJson, err := json.MarshalIndent(dstRequest, "", "  ")
 	if err != nil {
-		return map[string]interface{}{
-			"error": fmt.Sprintf("Failed to serialize result: %v", err),
-		}
+		return createErrorResult(fmt.Sprintf("Failed to serialize result: %v", err))
 	}
 
 	return map[string]interface{}{
@@ -132,9 +119,7 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 	}()
 
 	if len(args) != 3 {
-		return map[string]interface{}{
-			"error": "Expected 3 arguments: sourceProvider, targetProvider, responseJson",
-		}
+		return createErrorResult("Expected 3 arguments: sourceProvider, targetProvider, responseJson")
 	}
 
 	sourceProvider := transformer.Provider(args[0].String())
@@ -144,87 +129,216 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 	ctx := context.Background()
 
 	// Parse the response JSON based on source provider
-	var response interface{}
+	var srcResponse interface{}
+	var dstResponse interface{}
 	var err error
 
 	switch sourceProvider {
 	case transformer.ProviderOpenAI:
 		resp := &openai.ChatCompletionResponse{}
 		if err = json.Unmarshal([]byte(responseJsonStr), resp); err != nil {
-			return map[string]interface{}{
-				"error": fmt.Sprintf("Failed to parse OpenAI response: %v", err),
-			}
+			return createErrorResult(fmt.Sprintf("Failed to parse OpenAI response: %v", err))
 		}
-		response = resp
+		srcResponse = resp
 
 	case transformer.ProviderGemini:
 		resp := &gemini.GeminiChatResponse{}
 		if err = json.Unmarshal([]byte(responseJsonStr), resp); err != nil {
-			return map[string]interface{}{
-				"error": fmt.Sprintf("Failed to parse Gemini response: %v", err),
-			}
+			return createErrorResult(fmt.Sprintf("Failed to parse Gemini response: %v", err))
 		}
-		response = resp
+		srcResponse = resp
 
 	case transformer.ProviderClaude:
 		resp := &claude.ClaudeResponse{}
 		if err = json.Unmarshal([]byte(responseJsonStr), resp); err != nil {
-			return map[string]interface{}{
-				"error": fmt.Sprintf("Failed to parse Claude response: %v", err),
-			}
+			return createErrorResult(fmt.Sprintf("Failed to parse Claude response: %v", err))
 		}
-		response = resp
+		srcResponse = resp
 
 	default:
-		return map[string]interface{}{
-			"error": fmt.Sprintf("Unsupported source provider: %s", sourceProvider),
-		}
+		return createErrorResult(fmt.Sprintf("Unsupported source provider: %s", sourceProvider))
 	}
 
-	// Create transformers directly without registry
-	sourceTransformer := getTransformerForProvider(sourceProvider)
-	targetTransformer := getTransformerForProvider(targetProvider)
-
-	if targetProvider == transformer.ProviderClaude {
-		claudeResp := &claude.ClaudeResponse{}
-		openaiTransformer := sourceTransformer.(*transformer.OpenAITransformer)
-		err := openaiTransformer.ResponseToClaude(ctx, response, claudeResp)
-		if err != nil {
-			return createErrorResult(fmt.Sprintf("Failed to convert OpenAI response to Claude response: %v", err))
-		}
-		ret, _ := json.Marshal(claudeResp)
-		return map[string]interface{}{
-			"success": true,
-			"result":  string(ret),
-		}
+	// Create destination response object
+	switch targetProvider {
+	case transformer.ProviderOpenAI:
+		dstResponse = &openai.ChatCompletionResponse{}
+	case transformer.ProviderGemini:
+		dstResponse = &gemini.GeminiChatResponse{}
+	case transformer.ProviderClaude:
+		dstResponse = &claude.ClaudeResponse{}
+	default:
+		return createErrorResult(fmt.Sprintf("Unsupported target provider: %s", targetProvider))
 	}
 
-	if sourceTransformer == nil || targetTransformer == nil {
-		return createErrorResult(fmt.Sprintf("Unsupported transformation: %s -> %s", sourceProvider, targetProvider))
+	// Get direct transformer
+	transformerInstance := getDirectTransformer(sourceProvider)
+	if transformerInstance == nil {
+		return createErrorResult(fmt.Sprintf("No transformer available for %s -> %s", sourceProvider, targetProvider))
 	}
 
-	// Convert response to unified format first
-	unified, err := sourceTransformer.ResponseToUnified(ctx, response)
+	// Perform direct transformation
+	err = transformerInstance.Do(ctx, transformer.TransformerTypeResponse, srcResponse, dstResponse)
 	if err != nil {
-		return map[string]interface{}{
-			"error": fmt.Sprintf("Failed to convert response to unified format: %v", err),
-		}
-	}
-
-	// Transform from unified to target format
-	result, err := targetTransformer.ResponseFromUnified(ctx, unified)
-	if err != nil {
-		return map[string]interface{}{
-			"error": fmt.Sprintf("Failed to convert response from unified format: %v", err),
-		}
+		return createErrorResult(fmt.Sprintf("Failed to transform response: %v", err))
 	}
 
 	// Convert result to JSON
-	resultJson, err := json.MarshalIndent(result, "", "  ")
+	resultJson, err := json.MarshalIndent(dstResponse, "", "  ")
 	if err != nil {
-		return map[string]interface{}{
-			"error": fmt.Sprintf("Failed to serialize result: %v", err),
+		return createErrorResult(fmt.Sprintf("Failed to serialize result: %v", err))
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"result":  string(resultJson),
+	}
+}
+
+// transformStream transforms a full stream response from source provider to target provider
+func transformStream(this js.Value, args []js.Value) interface{} {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic in transformStream: %v\n", r)
 		}
+	}()
+
+	if len(args) != 3 {
+		return createErrorResult("Expected 3 arguments: sourceProvider, targetProvider, streamJson")
+	}
+
+	sourceProvider := transformer.Provider(args[0].String())
+	targetProvider := transformer.Provider(args[1].String())
+	streamJsonStr := args[2].String()
+
+	ctx := context.Background()
+
+	// Parse the stream JSON based on source provider
+	var srcStream interface{}
+	var dstStream interface{}
+	var err error
+
+	switch sourceProvider {
+	case transformer.ProviderOpenAI:
+		stream := &openai.ChatCompletionStreamResponse{}
+		if err = json.Unmarshal([]byte(streamJsonStr), stream); err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to parse OpenAI stream: %v", err))
+		}
+		srcStream = stream
+
+	case transformer.ProviderClaude:
+		stream := &claude.ClaudeResponse{}
+		if err = json.Unmarshal([]byte(streamJsonStr), stream); err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to parse Claude stream: %v", err))
+		}
+		srcStream = stream
+
+	default:
+		return createErrorResult(fmt.Sprintf("Unsupported source provider for stream: %s", sourceProvider))
+	}
+
+	// Create destination stream object
+	switch targetProvider {
+	case transformer.ProviderOpenAI:
+		dstStream = &openai.ChatCompletionStreamResponse{}
+	case transformer.ProviderClaude:
+		dstStream = &claude.ClaudeResponse{}
+	default:
+		return createErrorResult(fmt.Sprintf("Unsupported target provider for stream: %s", targetProvider))
+	}
+
+	// Get direct transformer
+	transformerInstance := getDirectTransformer(sourceProvider)
+	if transformerInstance == nil {
+		return createErrorResult(fmt.Sprintf("No transformer available for %s -> %s stream", sourceProvider, targetProvider))
+	}
+
+	// Perform direct stream transformation
+	err = transformerInstance.Do(ctx, transformer.TransformerTypeStream, srcStream, dstStream)
+	if err != nil {
+		return createErrorResult(fmt.Sprintf("Failed to transform stream: %v", err))
+	}
+
+	// Convert result to JSON
+	resultJson, err := json.MarshalIndent(dstStream, "", "  ")
+	if err != nil {
+		return createErrorResult(fmt.Sprintf("Failed to serialize stream result: %v", err))
+	}
+
+	return map[string]interface{}{
+		"success": true,
+		"result":  string(resultJson),
+	}
+}
+
+// transformChunk transforms a single chunk from stream response
+func transformChunk(this js.Value, args []js.Value) interface{} {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic in transformChunk: %v\n", r)
+		}
+	}()
+
+	if len(args) != 3 {
+		return createErrorResult("Expected 3 arguments: sourceProvider, targetProvider, chunkJson")
+	}
+
+	sourceProvider := transformer.Provider(args[0].String())
+	targetProvider := transformer.Provider(args[1].String())
+	chunkJsonStr := args[2].String()
+
+	ctx := context.Background()
+
+	// Parse the chunk JSON based on source provider
+	var srcChunk interface{}
+	var dstChunk interface{}
+	var err error
+
+	switch sourceProvider {
+	case transformer.ProviderOpenAI:
+		chunk := &openai.ChatCompletionStreamResponse{}
+		if err = json.Unmarshal([]byte(chunkJsonStr), chunk); err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to parse OpenAI chunk: %v", err))
+		}
+		srcChunk = chunk
+
+	case transformer.ProviderClaude:
+		chunk := &claude.ClaudeResponse{}
+		if err = json.Unmarshal([]byte(chunkJsonStr), chunk); err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to parse Claude chunk: %v", err))
+		}
+		srcChunk = chunk
+
+	default:
+		return createErrorResult(fmt.Sprintf("Unsupported source provider for chunk: %s", sourceProvider))
+	}
+
+	// Create destination chunk object
+	switch targetProvider {
+	case transformer.ProviderOpenAI:
+		dstChunk = &openai.ChatCompletionStreamResponse{}
+	case transformer.ProviderClaude:
+		dstChunk = &claude.ClaudeResponse{}
+	default:
+		return createErrorResult(fmt.Sprintf("Unsupported target provider for chunk: %s", targetProvider))
+	}
+
+	// Get direct transformer
+	transformerInstance := getDirectTransformer(sourceProvider)
+	if transformerInstance == nil {
+		return createErrorResult(fmt.Sprintf("No transformer available for %s -> %s chunk", sourceProvider, targetProvider))
+	}
+
+	// Perform direct chunk transformation
+	err = transformerInstance.Do(ctx, transformer.TransformerTypeChunk, srcChunk, dstChunk)
+	if err != nil {
+		return createErrorResult(fmt.Sprintf("Failed to transform chunk: %v", err))
+	}
+
+	// Convert result to JSON
+	resultJson, err := json.MarshalIndent(dstChunk, "", "  ")
+	if err != nil {
+		return createErrorResult(fmt.Sprintf("Failed to serialize chunk result: %v", err))
 	}
 
 	return map[string]interface{}{
@@ -313,11 +427,17 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 	requestJsonStr := args[1].String()
 	ctx := context.Background()
 
-	// Get transformer for the provider
-	transformerInstance := getTransformerForProvider(provider)
-	if transformerInstance == nil {
+	// Get any transformer that can validate this provider's requests
+	var transformerInstance transformer.Transformer
+	switch provider {
+	case transformer.ProviderOpenAI:
+		transformerInstance = transformer.NewOpenAITransformer()
+	case transformer.ProviderClaude:
+		transformerInstance = transformer.NewClaudeTransformer()
+	default:
 		return map[string]interface{}{
-			"error": fmt.Sprintf("Unsupported provider: %s", provider),
+			"error":   fmt.Sprintf("Unsupported provider: %s", provider),
+			"isValid": false,
 		}
 	}
 
@@ -328,16 +448,6 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 	switch provider {
 	case transformer.ProviderOpenAI:
 		req := &openai.ChatCompletionRequest{}
-		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
-			return map[string]interface{}{
-				"error":   fmt.Sprintf("Failed to parse request: %v", err),
-				"isValid": false,
-			}
-		}
-		request = req
-
-	case transformer.ProviderGemini:
-		req := &gemini.GeminiChatRequest{}
 		if err = json.Unmarshal([]byte(requestJsonStr), req); err != nil {
 			return map[string]interface{}{
 				"error":   fmt.Sprintf("Failed to parse request: %v", err),
@@ -371,13 +481,11 @@ func validateRequest(this js.Value, args []js.Value) interface{} {
 	}
 }
 
-// getTransformerForProvider returns the transformer instance for a given provider
-func getTransformerForProvider(provider transformer.Provider) transformer.Transformer {
-	switch provider {
+// getDirectTransformer returns the direct transformer for a specific source->target pair
+func getDirectTransformer(sourceProvider transformer.Provider) transformer.Transformer {
+	switch sourceProvider {
 	case transformer.ProviderOpenAI:
 		return transformer.NewOpenAITransformer()
-	case transformer.ProviderGemini:
-		return transformer.NewGeminiTransformer()
 	case transformer.ProviderClaude:
 		return transformer.NewClaudeTransformer()
 	default:
@@ -496,6 +604,8 @@ func main() {
 
 	safeRegister("transformRequest", transformRequest)
 	safeRegister("transformResponse", transformResponse)
+	safeRegister("transformStream", transformStream)
+	safeRegister("transformChunk", transformChunk)
 	safeRegister("getSupportedProviders", getSupportedProviders)
 	safeRegister("getAvailableTransformations", getAvailableTransformations)
 	safeRegister("validateRequest", validateRequest)
