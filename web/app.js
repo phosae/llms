@@ -452,138 +452,708 @@ class LLMTransformers {
         }
 
         const sourceProvider = this.currentTransformation.source;
+        const transformationType = document.querySelector('input[name="transformationType"]:checked').value;
 
-        const examples = {
+        const examples = this.getExamples();
+
+        // First check if the example type exists
+        if (!examples[exampleType]) {
+            this.showToast(`Unknown example type: ${exampleType}`, 'error');
+            return;
+        }
+
+        // Check if transformation type exists for this example
+        if (!examples[exampleType][transformationType]) {
+            this.showToast(`${exampleType} examples not available for ${transformationType} transformations`, 'warning');
+            return;
+        }
+
+        // Check if provider exists for this example+transformation combination
+        const example = examples[exampleType][transformationType][sourceProvider];
+        if (!example) {
+            const availableProviders = Object.keys(examples[exampleType][transformationType]);
+            this.showToast(`${exampleType} example not available for ${sourceProvider} (available: ${availableProviders.join(', ')})`, 'warning');
+            return;
+        }
+
+        // Load the example
+        document.getElementById('inputEditor').value = JSON.stringify(example, null, 2);
+        this.handleInputChange();
+        this.showToast('Example loaded successfully', 'success');
+
+        // Auto-transform the loaded example
+        if (this.currentTransformation) {
+            this.debounceTransform();
+        }
+    }
+
+    getExamples() {
+        return {
             'simple-chat': {
-                openai: {
-                    model: "gpt-4",
-                    messages: [
-                        { role: "system", content: "You are a helpful assistant." },
-                        { role: "user", content: "Hello! How can you help me today?" }
-                    ],
-                    max_tokens: 150,
-                    temperature: 0.7
-                },
-                gemini: {
-                    contents: [
-                        {
-                            role: "user",
-                            parts: [{ text: "Hello! How can you help me today?" }]
-                        }
-                    ],
-                    systemInstruction: {
-                        parts: [{ text: "You are a helpful assistant." }]
-                    },
-                    generationConfig: {
-                        maxOutputTokens: 150,
+                request: {
+                    openai: {
+                        model: "gpt-4",
+                        messages: [
+                            { role: "system", content: "You are a helpful assistant." },
+                            { role: "user", content: "Hello! How can you help me today?" }
+                        ],
+                        max_tokens: 150,
                         temperature: 0.7
+                    },
+                    gemini: {
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [{ text: "Hello! How can you help me today?" }]
+                            }
+                        ],
+                        systemInstruction: {
+                            parts: [{ text: "You are a helpful assistant." }]
+                        },
+                        generationConfig: {
+                            maxOutputTokens: 150,
+                            temperature: 0.7
+                        }
+                    },
+                    claude: {
+                        model: "claude-3-5-sonnet-20241022",
+                        max_tokens: 150,
+                        temperature: 0.7,
+                        system: "You are a helpful assistant.",
+                        messages: [
+                            { role: "user", content: "Hello! How can you help me today?" }
+                        ]
                     }
                 },
-                claude: {
-                    model: "claude-3-5-sonnet-20241022",
-                    max_tokens: 150,
-                    temperature: 0.7,
-                    system: "You are a helpful assistant.",
-                    messages: [
-                        { role: "user", content: "Hello! How can you help me today?" }
-                    ]
+                response: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion",
+                        created: 1677652288,
+                        model: "gpt-4",
+                        choices: [
+                            {
+                                index: 0,
+                                message: {
+                                    role: "assistant",
+                                    content: "Hello! I'm here to help you with a wide variety of tasks. I can assist with writing, analysis, math, coding, creative projects, answering questions, and much more. What would you like to work on today?"
+                                },
+                                finish_reason: "stop"
+                            }
+                        ],
+                        usage: { prompt_tokens: 12, completion_tokens: 35, total_tokens: 47 }
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        { text: "Hello! I'm here to help you with a wide variety of tasks. I can assist with writing, analysis, math, coding, creative projects, answering questions, and much more. What would you like to work on today?" }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP",
+                                index: 0
+                            }
+                        ],
+                        usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 35, totalTokenCount: 47 }
+                    },
+                    claude: {
+                        id: "msg_01EhYXf6n7Dp5gXxXkFp9mGV",
+                        type: "message",
+                        role: "assistant",
+                        content: [
+                            { type: "text", text: "Hello! I'm here to help you with a wide variety of tasks. I can assist with writing, analysis, math, coding, creative projects, answering questions, and much more. What would you like to work on today?" }
+                        ],
+                        model: "claude-3-5-sonnet-20241022",
+                        stop_reason: "end_turn",
+                        usage: { input_tokens: 12, output_tokens: 35 }
+                    }
                 }
             },
             'function-calls': {
-                openai: {
-                    model: "gpt-4",
-                    messages: [
-                        { role: "user", content: "What's the weather like in New York?" }
-                    ],
-                    tools: [
-                        {
-                            type: "function",
-                            function: {
-                                name: "get_weather",
-                                description: "Get current weather information for a location",
-                                parameters: {
-                                    type: "object",
-                                    properties: {
-                                        location: { type: "string", description: "The location to get weather for" }
-                                    },
-                                    required: ["location"]
+                request: {
+                    openai: {
+                        model: "gpt-4",
+                        messages: [
+                            { role: "user", content: "What's the weather like in New York?" }
+                        ],
+                        tools: [
+                            {
+                                type: "function",
+                                function: {
+                                    name: "get_weather",
+                                    description: "Get current weather information for a location",
+                                    parameters: {
+                                        type: "object",
+                                        properties: {
+                                            location: { type: "string", description: "The location to get weather for" }
+                                        },
+                                        required: ["location"]
+                                    }
                                 }
                             }
-                        }
-                    ],
-                    tool_choice: "auto"
-                }
-            },
-            'streaming': {
-                openai: {
-                    id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
-                    object: "chat.completion.chunk",
-                    created: 1677652288,
-                    model: "gpt-4o",
-                    system_fingerprint: "fp_44709d6f3e",
-                    choices: [
-                        {
-                            index: 0,
-                            delta: {
-                                role: "assistant",
-                                content: "The weather in New York is currently sunny with a temperature of 75°F."
-                            },
-                            logprobs: null,
-                            finish_reason: "stop"
-                        }
-                    ]
-                },
-                claude: {
-                    type: "message_delta",
-                    delta: {
-                        type: "text_delta",
-                        text: "The weather in New York is currently sunny with a temperature of 75°F."
+                        ]
                     },
-                    usage: {
-                        output_tokens: 15
+                    gemini: {
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [{ text: "Search for the latest AI research papers" }]
+                            }
+                        ],
+                        tools: [
+                            { googleSearch: {} }
+                        ]
+                    },
+                    claude: {
+                        model: "claude-3-5-sonnet-20241022",
+                        max_tokens: 1024,
+                        messages: [
+                            { role: "user", content: "List the files in the current directory" }
+                        ],
+                        tools: [
+                            {
+                                name: "bash",
+                                description: "Run bash commands",
+                                input_schema: {
+                                    type: "object",
+                                    properties: {
+                                        command: { type: "string", description: "The bash command to run" }
+                                    },
+                                    required: ["command"]
+                                }
+                            }
+                        ]
+                    }
+                },
+                response: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion",
+                        created: 1677652288,
+                        model: "gpt-4",
+                        choices: [
+                            {
+                                index: 0,
+                                message: {
+                                    role: "assistant",
+                                    content: null,
+                                    tool_calls: [
+                                        {
+                                            id: "call_abc123",
+                                            type: "function",
+                                            function: {
+                                                name: "get_weather",
+                                                arguments: '{"location": "New York"}'
+                                            }
+                                        }
+                                    ]
+                                },
+                                finish_reason: "tool_calls"
+                            }
+                        ],
+                        usage: { prompt_tokens: 45, completion_tokens: 12, total_tokens: 57 }
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        {
+                                            functionCall: {
+                                                name: "googleSearch",
+                                                args: { query: "latest AI research papers 2024" }
+                                            }
+                                        }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP",
+                                index: 0
+                            }
+                        ],
+                        usageMetadata: { promptTokenCount: 15, candidatesTokenCount: 8, totalTokenCount: 23 }
+                    },
+                    claude: {
+                        id: "msg_01EhYXf6n7Dp5gXxXkFp9mGV",
+                        type: "message",
+                        role: "assistant",
+                        content: [
+                            {
+                                type: "tool_use",
+                                id: "toolu_01A09q90qw90lq",
+                                name: "bash",
+                                input: { command: "ls -la" }
+                            }
+                        ],
+                        model: "claude-3-5-sonnet-20241022",
+                        stop_reason: "tool_use",
+                        usage: { input_tokens: 25, output_tokens: 18 }
+                    }
+                },
+                stream: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion.chunk",
+                        created: 1677652288,
+                        model: "gpt-4",
+                        choices: [
+                            {
+                                index: 0,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            id: "call_abc123",
+                                            function: {
+                                                name: "get_weather",
+                                                arguments: '{"location": "New York"}'
+                                            }
+                                        }
+                                    ]
+                                },
+                                finish_reason: "tool_calls"
+                            }
+                        ]
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        {
+                                            functionCall: {
+                                                name: "googleSearch",
+                                                args: { query: "latest AI research papers 2024" }
+                                            }
+                                        }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP"
+                            }
+                        ]
+                    },
+                    claude: {
+                        type: "content_block_delta",
+                        index: 0,
+                        delta: {
+                            type: "tool_use",
+                            id: "toolu_01A09q90qw90lq",
+                            name: "bash",
+                            input: { command: "ls -la" }
+                        }
+                    }
+                },
+                chunk: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion.chunk",
+                        created: 1677652288,
+                        model: "gpt-4",
+                        choices: [
+                            {
+                                index: 0,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: "call_abc123",
+                                            function: { name: "get_weather" }
+                                        }
+                                    ]
+                                },
+                                finish_reason: null
+                            }
+                        ]
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [{ functionCall: { name: "googleSearch" } }],
+                                    role: "model"
+                                },
+                                index: 0
+                            }
+                        ]
+                    },
+                    claude: {
+                        type: "content_block_start",
+                        index: 0,
+                        content_block: {
+                            type: "tool_use",
+                            id: "toolu_01A09q90qw90lq",
+                            name: "bash"
+                        }
                     }
                 }
             },
-            'stream-chunk': {
-                openai: {
-                    id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
-                    object: "chat.completion.chunk",
-                    created: 1677652288,
-                    model: "gpt-4o",
-                    system_fingerprint: "fp_44709d6f3e",
-                    choices: [
-                        {
-                            index: 0,
-                            delta: {
-                                content: "Hello"
-                            },
-                            logprobs: null,
-                            finish_reason: null
-                        }
-                    ]
+            'vision': {
+                request: {
+                    openai: {
+                        model: "gpt-4-vision-preview",
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "text", text: "What do you see in this image?" },
+                                    {
+                                        type: "image_url",
+                                        image_url: {
+                                            url: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        max_tokens: 300
+                    },
+                    gemini: {
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [
+                                    { text: "What do you see in this image?" },
+                                    {
+                                        inlineData: {
+                                            mimeType: "image/jpeg",
+                                            data: "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        generationConfig: { maxOutputTokens: 300 }
+                    },
+                    claude: {
+                        model: "claude-3-5-sonnet-20241022",
+                        max_tokens: 300,
+                        messages: [
+                            {
+                                role: "user",
+                                content: [
+                                    { type: "text", text: "What do you see in this image?" },
+                                    {
+                                        type: "image",
+                                        source: {
+                                            type: "base64",
+                                            media_type: "image/jpeg",
+                                            data: "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 },
-                claude: {
-                    type: "content_block_delta",
-                    index: 0,
-                    delta: {
-                        type: "text_delta",
-                        text: "Hello"
+                response: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion",
+                        created: 1677652288,
+                        model: "gpt-4-vision-preview",
+                        choices: [
+                            {
+                                index: 0,
+                                message: {
+                                    role: "assistant",
+                                    content: "I can see a very small image that appears to be mostly white or blank. The image seems to be minimal with very little visual content to describe."
+                                },
+                                finish_reason: "stop"
+                            }
+                        ],
+                        usage: { prompt_tokens: 85, completion_tokens: 25, total_tokens: 110 }
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        { text: "I can see a very small image that appears to be mostly white or blank. The image seems to be minimal with very little visual content to describe." }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP",
+                                index: 0
+                            }
+                        ],
+                        usageMetadata: { promptTokenCount: 85, candidatesTokenCount: 25, totalTokenCount: 110 }
+                    },
+                    claude: {
+                        id: "msg_01EhYXf6n7Dp5gXxXkFp9mGV",
+                        type: "message",
+                        role: "assistant",
+                        content: [
+                            { type: "text", text: "I can see a very small image that appears to be mostly white or blank. The image seems to be minimal with very little visual content to describe." }
+                        ],
+                        model: "claude-3-5-sonnet-20241022",
+                        stop_reason: "end_turn",
+                        usage: { input_tokens: 85, output_tokens: 25 }
+                    }
+                },
+                stream: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion.chunk",
+                        created: 1677652288,
+                        model: "gpt-4-vision-preview",
+                        choices: [
+                            {
+                                index: 0,
+                                delta: {
+                                    content: "I can see a very small image that appears to be mostly white or blank."
+                                },
+                                finish_reason: "stop"
+                            }
+                        ]
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        { text: "I can see a very small image that appears to be mostly white or blank." }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP"
+                            }
+                        ]
+                    },
+                    claude: {
+                        type: "message_delta",
+                        delta: {
+                            type: "text_delta",
+                            text: "I can see a very small image that appears to be mostly white or blank."
+                        }
+                    }
+                },
+                chunk: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion.chunk",
+                        created: 1677652288,
+                        model: "gpt-4-vision-preview",
+                        choices: [
+                            {
+                                index: 0,
+                                delta: { content: "I can see" },
+                                finish_reason: null
+                            }
+                        ]
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [{ text: "I can see" }],
+                                    role: "model"
+                                },
+                                index: 0
+                            }
+                        ]
+                    },
+                    claude: {
+                        type: "content_block_delta",
+                        index: 0,
+                        delta: {
+                            type: "text_delta",
+                            text: "I can see"
+                        }
+                    }
+                }
+            },
+            'provider-special': {
+                request: {
+                    gemini: {
+                        contents: [
+                            {
+                                role: "user",
+                                parts: [{ text: "Write and execute Python code to calculate fibonacci numbers" }]
+                            }
+                        ],
+                        tools: [
+                            { codeExecution: {} }
+                        ]
+                    },
+                    claude: {
+                        model: "claude-3-5-sonnet-20241022",
+                        max_tokens: 1024,
+                        system: "You have access to bash and computer use tools.",
+                        messages: [
+                            { role: "user", content: "Check system memory usage and create a simple Python script" }
+                        ],
+                        tools: [
+                            {
+                                name: "bash",
+                                description: "Run bash commands",
+                                input_schema: {
+                                    type: "object",
+                                    properties: {
+                                        command: { type: "string" }
+                                    },
+                                    required: ["command"]
+                                }
+                            },
+                            {
+                                name: "computer_20241022",
+                                description: "Use computer to take screenshots and interact with desktop",
+                                input_schema: {
+                                    type: "object",
+                                    properties: {
+                                        action: { type: "string", enum: ["screenshot", "click", "type"] }
+                                    },
+                                    required: ["action"]
+                                }
+                            }
+                        ]
+                    },
+                    openai: {
+                        model: "gpt-4",
+                        messages: [
+                            { role: "user", content: "Create a simple calculator function" }
+                        ],
+                        tools: [
+                            {
+                                type: "function",
+                                function: {
+                                    name: "python_executor",
+                                    description: "Execute Python code",
+                                    parameters: {
+                                        type: "object",
+                                        properties: {
+                                            code: { type: "string", description: "Python code to execute" }
+                                        },
+                                        required: ["code"]
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                response: {
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        { text: "I'll write Python code to calculate Fibonacci numbers:" },
+                                        {
+                                            executableCode: {
+                                                language: "python",
+                                                code: "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n\nprint([fibonacci(i) for i in range(10)])"
+                                            }
+                                        },
+                                        {
+                                            codeExecutionResult: {
+                                                outcome: "OUTCOME_OK",
+                                                output: "[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]"
+                                            }
+                                        }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP",
+                                index: 0
+                            }
+                        ],
+                        usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 45, totalTokenCount: 65 }
+                    },
+                    claude: {
+                        id: "msg_01EhYXf6n7Dp5gXxXkFp9mGV",
+                        type: "message",
+                        role: "assistant",
+                        content: [
+                            { type: "text", text: "I'll check system memory and create a Python script for you." },
+                            {
+                                type: "tool_use",
+                                id: "toolu_01A09q90qw90lq",
+                                name: "bash",
+                                input: { command: "free -h" }
+                            }
+                        ],
+                        model: "claude-3-5-sonnet-20241022",
+                        stop_reason: "tool_use",
+                        usage: { input_tokens: 35, output_tokens: 28 }
+                    }
+                },
+                stream: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion.chunk",
+                        created: 1677652288,
+                        model: "gpt-4",
+                        choices: [
+                            {
+                                index: 0,
+                                delta: {
+                                    role: "assistant",
+                                    content: "Hello! I'm here to help you with a wide variety of tasks."
+                                },
+                                finish_reason: "stop"
+                            }
+                        ]
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [
+                                        { text: "Hello! I'm here to help you with a wide variety of tasks." }
+                                    ],
+                                    role: "model"
+                                },
+                                finishReason: "STOP",
+                                index: 0
+                            }
+                        ],
+                        usageMetadata: { promptTokenCount: 12, candidatesTokenCount: 15, totalTokenCount: 27 }
+                    },
+                    claude: {
+                        type: "message_delta",
+                        delta: {
+                            type: "text_delta",
+                            text: "Hello! I'm here to help you with a wide variety of tasks."
+                        },
+                        usage: { output_tokens: 15 }
+                    }
+                },
+                chunk: {
+                    openai: {
+                        id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                        object: "chat.completion.chunk",
+                        created: 1677652288,
+                        model: "gpt-4",
+                        choices: [
+                            {
+                                index: 0,
+                                delta: { content: "Hello" },
+                                finish_reason: null
+                            }
+                        ]
+                    },
+                    gemini: {
+                        candidates: [
+                            {
+                                content: {
+                                    parts: [{ text: "Hello" }],
+                                    role: "model"
+                                },
+                                index: 0
+                            }
+                        ]
+                    },
+                    claude: {
+                        type: "content_block_delta",
+                        index: 0,
+                        delta: {
+                            type: "text_delta",
+                            text: "Hello"
+                        }
                     }
                 }
             }
-        };
-
-        const example = examples[exampleType]?.[sourceProvider];
-        if (example) {
-            document.getElementById('inputEditor').value = JSON.stringify(example, null, 2);
-            this.handleInputChange();
-            this.showToast('Example loaded successfully', 'success');
-            // Auto-transform the loaded example
-            if (this.currentTransformation) {
-                this.debounceTransform();
-            }
-        } else {
-            this.showToast('Example not available for this provider', 'warning');
         }
     }
 
@@ -638,16 +1208,16 @@ class LLMTransformers {
     adjustEditorHeight(editor) {
         // Reset height to auto to get the correct scrollHeight
         editor.style.height = 'auto';
-        
+
         // Calculate the required height based on content
         const scrollHeight = editor.scrollHeight;
         const minHeight = 200; // min-height from CSS
         const maxHeight = window.innerHeight * 0.8; // 80vh
-        
+
         // Set the height to fit content, respecting min/max limits
         const newHeight = Math.max(minHeight, Math.min(scrollHeight + 2, maxHeight));
         editor.style.height = newHeight + 'px';
-        
+
         // Also adjust output display height to match
         const outputDisplay = document.getElementById('outputDisplay');
         if (outputDisplay) {
@@ -794,7 +1364,7 @@ class LLMTransformers {
             outputEl.textContent = jsonString;
             outputCharCount.textContent = `${jsonString.length} characters`;
             transformationTime.textContent = `Transformed in ${transformTime}ms`;
-            
+
             // Auto-adjust output height for plain text
             this.adjustOutputHeight(outputEl);
         }
@@ -805,7 +1375,7 @@ class LLMTransformers {
         const scrollHeight = outputEl.scrollHeight;
         const minHeight = 200; // min-height from CSS
         const maxHeight = window.innerHeight * 0.8; // 80vh
-        
+
         // Set the height to fit content, respecting min/max limits
         const newHeight = Math.max(minHeight, Math.min(scrollHeight + 20, maxHeight));
         outputEl.style.height = newHeight + 'px';
@@ -820,7 +1390,7 @@ class LLMTransformers {
 
         document.getElementById('outputCharCount').textContent = '0 characters';
         document.getElementById('transformationTime').textContent = '';
-        
+
         // Auto-adjust height for error display
         this.adjustOutputHeight(outputEl);
     }
@@ -1003,12 +1573,12 @@ class LLMTransformers {
             try {
                 const decoded = decodeURIComponent(atob(inputParam));
                 document.getElementById('inputEditor').value = decoded;
-                
+
                 // Trigger input change handler to update character count and adjust height
                 const inputEditor = document.getElementById('inputEditor');
                 this.adjustEditorHeight(inputEditor);
                 document.getElementById('inputCharCount').textContent = `${decoded.length} characters`;
-                
+
                 // Auto-format the restored JSON content
                 this.autoFormatJson();
             } catch (error) {
