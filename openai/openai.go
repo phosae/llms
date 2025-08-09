@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/phosae/llms/common"
 	"gitlab.paigod.work/ai/go-openai/jsonschema"
 )
 
@@ -86,6 +87,8 @@ type ChatMessagePart struct {
 	Type     ChatMessagePartType  `json:"type,omitempty"`
 	Text     string               `json:"text,omitempty"`
 	ImageURL *ChatMessageImageURL `json:"image_url,omitempty"`
+
+	CacheControl *common.CacheControl `json:"cache_control,omitempty"`
 }
 
 type ChatCompletionMessage struct {

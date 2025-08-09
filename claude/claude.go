@@ -2,6 +2,8 @@ package claude
 
 import (
 	"encoding/json"
+
+	"github.com/phosae/llms/common"
 )
 
 func Any2Type[T any](v any) (T, error) {
@@ -30,7 +32,7 @@ type ClaudeMediaMessage struct {
 	Thinking     string               `json:"thinking,omitempty"`
 	Signature    string               `json:"signature,omitempty"`
 	Delta        string               `json:"delta,omitempty"`
-	CacheControl json.RawMessage      `json:"cache_control,omitempty"`
+	CacheControl *common.CacheControl `json:"cache_control,omitempty"`
 	// tool_calls
 	Id        string `json:"id,omitempty"`
 	Name      string `json:"name,omitempty"`
