@@ -76,17 +76,32 @@ type ChatMessageImageURL struct {
 	Detail ImageURLDetail `json:"detail,omitempty"`
 }
 
+type ChatMessageInputAudio struct {
+	Data   string `json:"data"` //base64
+	Format string `json:"format"`
+}
+
+type ChatMessageFile struct {
+	FileName string `json:"filename,omitempty"`
+	FileData string `json:"file_data,omitempty"`
+	FileId   string `json:"file_id,omitempty"`
+}
+
 type ChatMessagePartType string
 
 const (
-	ChatMessagePartTypeText     ChatMessagePartType = "text"
-	ChatMessagePartTypeImageURL ChatMessagePartType = "image_url"
+	ChatMessagePartTypeText       ChatMessagePartType = "text"
+	ChatMessagePartTypeImageURL   ChatMessagePartType = "image_url"
+	ChatMessagePartTypeInputAudio ChatMessagePartType = "input_audio"
+	ChatMessagePartTypeFile       ChatMessagePartType = "file"
 )
 
 type ChatMessagePart struct {
-	Type     ChatMessagePartType  `json:"type,omitempty"`
-	Text     string               `json:"text,omitempty"`
-	ImageURL *ChatMessageImageURL `json:"image_url,omitempty"`
+	Type       ChatMessagePartType    `json:"type,omitempty"`
+	Text       string                 `json:"text,omitempty"`
+	ImageURL   *ChatMessageImageURL   `json:"image_url,omitempty"`
+	InputAudio *ChatMessageInputAudio `json:"input_audio,omitempty"`
+	File       *ChatMessageFile       `json:"file,omitempty"`
 
 	CacheControl *common.CacheControl `json:"cache_control,omitempty"`
 }
