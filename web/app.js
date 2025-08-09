@@ -493,6 +493,63 @@ class LLMTransformers {
                     ],
                     tool_choice: "auto"
                 }
+            },
+            'streaming': {
+                openai: {
+                    id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                    object: "chat.completion.chunk",
+                    created: 1677652288,
+                    model: "gpt-4o",
+                    system_fingerprint: "fp_44709d6f3e",
+                    choices: [
+                        {
+                            index: 0,
+                            delta: {
+                                role: "assistant",
+                                content: "The weather in New York is currently sunny with a temperature of 75°F."
+                            },
+                            logprobs: null,
+                            finish_reason: "stop"
+                        }
+                    ]
+                },
+                claude: {
+                    type: "message_delta",
+                    delta: {
+                        type: "text_delta",
+                        text: "The weather in New York is currently sunny with a temperature of 75°F."
+                    },
+                    usage: {
+                        output_tokens: 15
+                    }
+                }
+            },
+            'stream-chunk': {
+                openai: {
+                    id: "chatcmpl-8pQ0e0Z0Y1z7X5d9G7z7p8pQ",
+                    object: "chat.completion.chunk",
+                    created: 1677652288,
+                    model: "gpt-4o",
+                    system_fingerprint: "fp_44709d6f3e",
+                    choices: [
+                        {
+                            index: 0,
+                            delta: {
+                                content: "Hello"
+                            },
+                            logprobs: null,
+                            finish_reason: null
+                        }
+                    ]
+                },
+                claude: {
+                    type: "content_block_delta",
+                    index: 0,
+                    delta: {
+                        type: "text_delta",
+                        text: "Hello"
+                    }
+                }
             }
         };
 

@@ -30,6 +30,14 @@
                             <input type="radio" name="transformationType" value="response">
                             Response
                         </label>
+                        <label>
+                            <input type="radio" name="transformationType" value="stream">
+                            Stream Response
+                        </label>
+                        <label>
+                            <input type="radio" name="transformationType" value="chunk">
+                            Stream Chunk
+                        </label>
                     </div>
                 </div>
                 <div id="transformationsList" class="transformations-grid">
@@ -96,14 +104,14 @@
                         <button class="btn btn-small" data-example="function-calls">Load</button>
                     </div>
                     <div class="example-card">
-                        <h4>Multi-modal</h4>
-                        <p>Text and image content</p>
-                        <button class="btn btn-small" data-example="multimodal">Load</button>
+                        <h4>Streaming Response</h4>
+                        <p>Complete stream response with finish reason</p>
+                        <button class="btn btn-small" data-example="streaming">Load</button>
                     </div>
                     <div class="example-card">
-                        <h4>Streaming Response</h4>
-                        <p>Response with streaming configuration</p>
-                        <button class="btn btn-small" data-example="streaming">Load</button>
+                        <h4>Stream Chunk</h4>
+                        <p>Individual chunk from streaming response</p>
+                        <button class="btn btn-small" data-example="stream-chunk">Load</button>
                     </div>
                 </div>
             </section>
