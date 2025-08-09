@@ -50,17 +50,17 @@ type Profanity struct {
 }
 
 type ContentFilterResults struct {
-	Hate      Hate      `json:"hate,omitempty"`
-	SelfHarm  SelfHarm  `json:"self_harm,omitempty"`
-	Sexual    Sexual    `json:"sexual,omitempty"`
-	Violence  Violence  `json:"violence,omitempty"`
-	JailBreak JailBreak `json:"jailbreak,omitempty"`
-	Profanity Profanity `json:"profanity,omitempty"`
+	Hate      *Hate      `json:"hate,omitempty"`
+	SelfHarm  *SelfHarm  `json:"self_harm,omitempty"`
+	Sexual    *Sexual    `json:"sexual,omitempty"`
+	Violence  *Violence  `json:"violence,omitempty"`
+	JailBreak *JailBreak `json:"jailbreak,omitempty"`
+	Profanity *Profanity `json:"profanity,omitempty"`
 }
 
 type PromptAnnotation struct {
-	PromptIndex          int                  `json:"prompt_index,omitempty"`
-	ContentFilterResults ContentFilterResults `json:"content_filter_results,omitempty"`
+	PromptIndex          int                   `json:"prompt_index,omitempty"`
+	ContentFilterResults *ContentFilterResults `json:"content_filter_results,omitempty"`
 }
 
 type ImageURLDetail string
