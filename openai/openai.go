@@ -538,4 +538,7 @@ type CompletionTokensDetails struct {
 type PromptTokensDetails struct {
 	AudioTokens  int `json:"audio_tokens"`
 	CachedTokens int `json:"cached_tokens"`
+
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"` // used for anthropic
+	CacheReadInputTokens     int `json:"cache_read_input_tokens"`     // used for anthropic
 }

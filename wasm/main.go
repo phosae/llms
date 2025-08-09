@@ -185,6 +185,20 @@ func transformResponse(this js.Value, args []js.Value) interface{} {
 	sourceTransformer := getTransformerForProvider(sourceProvider)
 	targetTransformer := getTransformerForProvider(targetProvider)
 
+	if targetProvider == transformer.ProviderClaude {
+		claudeResp := &claude.ClaudeResponse{}
+		openaiTransformer := sourceTransformer.(*transformer.OpenAITransformer)
+		err := openaiTransformer.ResponseToClaude(ctx, response, claudeResp)
+		if err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to convert OpenAI response to Claude response: %v", err))
+		}
+		ret, _ := json.Marshal(claudeResp)
+		return map[string]interface{}{
+			"success": true,
+			"result":  string(ret),
+		}
+	}
+
 	if sourceTransformer == nil || targetTransformer == nil {
 		return createErrorResult(fmt.Sprintf("Unsupported transformation: %s -> %s", sourceProvider, targetProvider))
 	}

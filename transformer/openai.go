@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/phosae/llms/claude"
 	"github.com/phosae/llms/openai"
 )
 
@@ -391,6 +392,90 @@ func (t *OpenAITransformer) ResponseToUnified(ctx context.Context, providerRespo
 	}
 
 	return unified, nil
+}
+
+func stopReasonOpenAI2Claude(reason string) string {
+	switch reason {
+	case "stop":
+		return "end_turn"
+	case "stop_sequence":
+		return "stop_sequence"
+	case "max_tokens":
+		return "max_tokens"
+	case "tool_calls":
+		return "tool_use"
+	default:
+		return reason
+	}
+}
+
+func (t *OpenAITransformer) ResponseToClaude(ctx context.Context, srcResp interface{}, dstResp interface{}) error {
+	oaiResp, ok := srcResp.(*openai.ChatCompletionResponse)
+	if !ok {
+		return fmt.Errorf("invalid response type for OpenAI transformer")
+	}
+
+	claudeResp, ok := dstResp.(*claude.ClaudeResponse)
+	if !ok {
+		return fmt.Errorf("invalid response type for Claude transformer")
+	}
+
+	claudeResp.Id = oaiResp.ID
+	claudeResp.Type = oaiResp.Object
+	claudeResp.Role = "assistant"
+	claudeResp.Model = oaiResp.Model
+
+	for _, choice := range oaiResp.Choices {
+		claudeResp.StopReason = stopReasonOpenAI2Claude(string(choice.FinishReason))
+		if choice.FinishReason == "tool_calls" {
+			for _, toolCall := range choice.Message.ToolCalls {
+				claudeResp.Content = append(claudeResp.Content, claude.ClaudeMediaMessage{
+					Type:  "tool_use",
+					Id:    toolCall.ID,
+					Name:  toolCall.Function.Name,
+					Input: toolCall.Function.Arguments,
+				})
+			}
+		} else {
+			claudeResp.Content = append(claudeResp.Content, claude.ClaudeMediaMessage{
+				Type: "text",
+				Text: &choice.Message.Content,
+			})
+		}
+	}
+
+	claudeResp.Usage = &claude.ClaudeUsage{
+		InputTokens:  oaiResp.Usage.PromptTokens,
+		OutputTokens: oaiResp.Usage.CompletionTokens,
+	}
+
+	if oaiResp.Usage.PromptTokensDetails != nil && (oaiResp.Usage.PromptTokensDetails.CacheCreationInputTokens > 0 || oaiResp.Usage.PromptTokensDetails.CacheReadInputTokens > 0) {
+		if oaiResp.Usage.PromptTokensDetails.CacheCreationInputTokens > 0 {
+			claudeResp.Usage.CacheCreationInputTokens = oaiResp.Usage.PromptTokensDetails.CacheCreationInputTokens
+			claudeResp.Usage.InputTokens -= oaiResp.Usage.PromptTokensDetails.CacheCreationInputTokens
+		}
+		if oaiResp.Usage.PromptTokensDetails.CacheReadInputTokens > 0 {
+			claudeResp.Usage.CacheReadInputTokens = oaiResp.Usage.PromptTokensDetails.CacheReadInputTokens
+			claudeResp.Usage.InputTokens -= oaiResp.Usage.PromptTokensDetails.CacheReadInputTokens
+		}
+	}
+	return nil
+}
+
+func (t *OpenAITransformer) StreamResponseToClaude(ctx context.Context, srcResp interface{}, dstResp interface{}) error {
+	oaiResp, ok := srcResp.(*openai.ChatCompletionStreamResponse)
+	if !ok {
+		return fmt.Errorf("invalid response type for OpenAI transformer")
+	}
+
+	claudeResp, ok := dstResp.(*claude.ClaudeResponse)
+	if !ok {
+		return fmt.Errorf("invalid response type for Claude transformer")
+	}
+
+	fmt.Println("oaiResp is", oaiResp)
+	fmt.Println("claudeResp is", claudeResp)
+	return nil
 }
 
 // ResponseFromUnified converts unified response to OpenAI format

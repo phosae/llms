@@ -331,7 +331,7 @@ type ClaudeUsage struct {
 	} `json:"cache_creation,omitempty"` // anthropic-beta: extended-cache-ttl-2025-04-11, cache_creation_input_tokens = cache_creation.ephemeral_5m_input_tokens + cache_creation.ephemeral_1h_input_tokens
 	CacheReadInputTokens int                  `json:"cache_read_input_tokens"`
 	OutputTokens         int                  `json:"output_tokens"`
-	ServerToolUse        *ClaudeServerToolUse `json:"server_tool_use"`
+	ServerToolUse        *ClaudeServerToolUse `json:"server_tool_use,omitempty"`
 }
 
 type ClaudeServerToolUse struct {
