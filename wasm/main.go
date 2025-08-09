@@ -79,6 +79,20 @@ func transformRequest(this js.Value, args []js.Value) interface{} {
 	sourceTransformer := getTransformerForProvider(sourceProvider)
 	targetTransformer := getTransformerForProvider(targetProvider)
 
+	claudeSourceTransformer, ok := sourceTransformer.(*transformer.ClaudeTransformer)
+	if ok && targetProvider == transformer.ProviderOpenAI {
+		dstOaiReq := &openai.ChatCompletionRequest{}
+		err := claudeSourceTransformer.RequestToOpenAI(ctx, request.(*claude.ClaudeRequest), dstOaiReq)
+		if err != nil {
+			return createErrorResult(fmt.Sprintf("Failed to convert Claude request to OpenAI request: %v", err))
+		}
+		dstOaiReqJson, _ := json.Marshal(dstOaiReq)
+		return map[string]interface{}{
+			"success": true,
+			"result":  string(dstOaiReqJson),
+		}
+	}
+
 	if sourceTransformer == nil || targetTransformer == nil {
 		return createErrorResult(fmt.Sprintf("Unsupported transformation: %s -> %s", sourceProvider, targetProvider))
 	}
