@@ -3,6 +3,7 @@ class LLMTransformers {
         this.wasmLoaded = false;
         this.currentTransformation = null;
         this.transformDebounceTimer = null;
+        this.formatDebounceTimer = null;
         this.stats = {
             totalTransformations: 0,
             successfulTransformations: 0,
@@ -355,17 +356,24 @@ class LLMTransformers {
     }
 
     handleInputChange() {
-        const input = document.getElementById('inputEditor').value;
+        const inputEditor = document.getElementById('inputEditor');
+        const input = inputEditor.value;
         document.getElementById('inputCharCount').textContent = `${input.length} characters`;
 
         // Clear validation status when input changes
         document.getElementById('inputValidation').textContent = '';
         document.getElementById('inputValidation').className = 'validation-status';
 
+        // Auto-adjust height based on content
+        this.adjustEditorHeight(inputEditor);
+
         // Auto-transform if content is present and transformation is selected
         if (input.trim() && this.currentTransformation) {
             this.debounceTransform();
         }
+
+        // Auto-format JSON with debounce
+        this.debounceJsonFormat();
     }
 
     async validateInput() {
@@ -574,6 +582,67 @@ class LLMTransformers {
         document.getElementById('inputValidation').className = 'validation-status';
     }
 
+    debounceJsonFormat() {
+        // Clear existing timer
+        if (this.formatDebounceTimer) {
+            clearTimeout(this.formatDebounceTimer);
+        }
+
+        // Set new timer for 2 second delay (ideal interval for auto-formatting)
+        this.formatDebounceTimer = setTimeout(() => {
+            this.autoFormatJson();
+        }, 2000);
+    }
+
+    autoFormatJson() {
+        const inputEditor = document.getElementById('inputEditor');
+        const input = inputEditor.value.trim();
+        
+        if (!input) return;
+
+        try {
+            // Try to parse and format the JSON
+            const parsed = JSON.parse(input);
+            const formatted = JSON.stringify(parsed, null, 2);
+            
+            // Only update if the formatting actually changed
+            if (formatted !== input) {
+                const cursorPos = inputEditor.selectionStart;
+                inputEditor.value = formatted;
+                
+                // Restore cursor position approximately
+                const newPos = Math.min(cursorPos, formatted.length);
+                inputEditor.setSelectionRange(newPos, newPos);
+                
+                // Adjust height after formatting
+                this.adjustEditorHeight(inputEditor);
+            }
+        } catch (error) {
+            // Invalid JSON, don't format
+            console.log('Invalid JSON, skipping auto-format');
+        }
+    }
+
+    adjustEditorHeight(editor) {
+        // Reset height to auto to get the correct scrollHeight
+        editor.style.height = 'auto';
+        
+        // Calculate the required height based on content
+        const scrollHeight = editor.scrollHeight;
+        const minHeight = 200; // min-height from CSS
+        const maxHeight = window.innerHeight * 0.8; // 80vh
+        
+        // Set the height to fit content, respecting min/max limits
+        const newHeight = Math.max(minHeight, Math.min(scrollHeight + 2, maxHeight));
+        editor.style.height = newHeight + 'px';
+        
+        // Also adjust output display height to match
+        const outputDisplay = document.getElementById('outputDisplay');
+        if (outputDisplay) {
+            outputDisplay.style.height = newHeight + 'px';
+        }
+    }
+
     debounceTransform() {
         // Clear existing timer
         if (this.transformDebounceTimer) {
@@ -705,12 +774,29 @@ class LLMTransformers {
             outputCharCount.textContent = `${formatted.length} characters`;
             transformationTime.textContent = `Transformed in ${transformTime}ms`;
 
+            // Auto-adjust output height based on content
+            this.adjustOutputHeight(outputEl);
+
         } catch (error) {
             // If JSON parsing fails, display as plain text
             outputEl.textContent = jsonString;
             outputCharCount.textContent = `${jsonString.length} characters`;
             transformationTime.textContent = `Transformed in ${transformTime}ms`;
+            
+            // Auto-adjust output height for plain text
+            this.adjustOutputHeight(outputEl);
         }
+    }
+
+    adjustOutputHeight(outputEl) {
+        // Calculate the required height based on content
+        const scrollHeight = outputEl.scrollHeight;
+        const minHeight = 200; // min-height from CSS
+        const maxHeight = window.innerHeight * 0.8; // 80vh
+        
+        // Set the height to fit content, respecting min/max limits
+        const newHeight = Math.max(minHeight, Math.min(scrollHeight + 20, maxHeight));
+        outputEl.style.height = newHeight + 'px';
     }
 
     displayError(errorMessage) {
@@ -722,6 +808,9 @@ class LLMTransformers {
 
         document.getElementById('outputCharCount').textContent = '0 characters';
         document.getElementById('transformationTime').textContent = '';
+        
+        // Auto-adjust height for error display
+        this.adjustOutputHeight(outputEl);
     }
 
     copyOutput() {
