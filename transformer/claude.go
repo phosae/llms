@@ -117,6 +117,7 @@ func transformRequestToOpenAI(ctx context.Context, claudeReq *claude.ClaudeReque
 				Description: claudeTool.Description,
 				Parameters:  claudeTool.InputSchema,
 			},
+			CacheControl: claudeTool.CacheControl,
 		})
 	}
 	oaiReq.Tools = openAITools
@@ -179,6 +180,7 @@ func transformRequestToOpenAI(ctx context.Context, claudeReq *claude.ClaudeReque
 						ImageURL: &openai.ChatMessageImageURL{
 							URL: imageData,
 						},
+						CacheControl: content.CacheControl,
 					})
 				case "tool_use":
 					openAIMessage.ToolCalls = append(openAIMessage.ToolCalls, openai.ToolCall{
@@ -203,6 +205,7 @@ func transformRequestToOpenAI(ctx context.Context, claudeReq *claude.ClaudeReque
 						json, _ := json.Marshal(mContents)
 						oaiToolMessage.Content = string(json)
 					}
+					oaiToolMessage.CacheControl = content.CacheControl
 					oaiMessages = append(oaiMessages, oaiToolMessage)
 				}
 			}

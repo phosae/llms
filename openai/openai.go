@@ -353,8 +353,9 @@ const (
 )
 
 type Tool struct {
-	Type     ToolType            `json:"type"`
-	Function *FunctionDefinition `json:"function,omitempty"`
+	Type         ToolType             `json:"type"`
+	Function     *FunctionDefinition  `json:"function,omitempty"`
+	CacheControl *common.CacheControl `json:"cache_control,omitempty"` // un-official field, explicit cache control for Claude, Gemini etc. via OpenAI API
 }
 
 type ToolChoice struct {

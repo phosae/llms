@@ -90,7 +90,7 @@ func (t *OpenAITransformer) transformResponse(ctx context.Context, src interface
 
 func transformResponseToClaude(ctx context.Context, oaiResp *openai.ChatCompletionResponse, claudeResp *claude.ClaudeResponse) error {
 	claudeResp.Id = oaiResp.ID
-	claudeResp.Type = oaiResp.Object
+	claudeResp.Type = "message"
 	claudeResp.Role = "assistant"
 	claudeResp.Model = oaiResp.Model
 
@@ -138,7 +138,7 @@ func transformRequestToClaude(ctx context.Context, oaiReq *openai.ChatCompletion
 
 func transformRequestToGemini(ctx context.Context, oaiReq *openai.ChatCompletionRequest, geminiReq *gemini.GeminiChatRequest) error {
 	geminiReq.Contents = make([]gemini.GeminiChatContent, 0, len(oaiReq.Messages))
-	
+
 	// Generation config
 	geminiReq.GenerationConfig = gemini.GeminiChatGenerationConfig{
 		Temperature: func() *float64 {
@@ -201,7 +201,7 @@ func transformRequestToGemini(ctx context.Context, oaiReq *openai.ChatCompletion
 	// Process messages
 	toolCallIds := make(map[string]string)
 	var systemContents []string
-	
+
 	for _, message := range oaiReq.Messages {
 		switch message.Role {
 		case "system", "developer":
@@ -222,7 +222,7 @@ func transformRequestToGemini(ctx context.Context, oaiReq *openai.ChatCompletion
 					name = val
 				}
 			}
-			
+
 			var contentMap map[string]any
 			if err := json.Unmarshal([]byte(message.Content), &contentMap); err != nil {
 				var contentSlice []any
@@ -232,7 +232,7 @@ func transformRequestToGemini(ctx context.Context, oaiReq *openai.ChatCompletion
 					contentMap = map[string]any{"content": message.Content}
 				}
 			}
-			
+
 			geminiReq.Contents = append(geminiReq.Contents, gemini.GeminiChatContent{
 				Role: "user",
 				Parts: []gemini.GeminiPart{
@@ -304,7 +304,7 @@ func transformRequestToGemini(ctx context.Context, oaiReq *openai.ChatCompletion
 					}
 				}
 			}
-			
+
 			content.Parts = parts
 			if len(content.Parts) > 0 {
 				geminiReq.Contents = append(geminiReq.Contents, content)
@@ -332,9 +332,28 @@ func (t *OpenAITransformer) transformStreamResponse(ctx context.Context, src int
 	return fmt.Errorf("stream response transformation not yet implemented")
 }
 
-// transformChunk transforms OpenAI chunk to Claude chunk
+// transformChunk transforms OpenAI chunk to other provider's chunk
 func (t *OpenAITransformer) transformChunk(ctx context.Context, src interface{}, dst interface{}) error {
-	return fmt.Errorf("chunk transformation not yet implemented")
+	oaiChunk, ok := src.(*openai.ChatCompletionStreamResponse)
+	if !ok {
+		return fmt.Errorf("invalid source type for OpenAI transformer")
+	}
+
+	switch dst.(type) {
+	case []*claude.ClaudeResponse:
+		return t.transformChunkToClaude(ctx, oaiChunk, dst.(*claude.ClaudeResponse))
+	default:
+		return fmt.Errorf("target type not supported for OpenAI transformer")
+	}
+}
+
+func (t *OpenAITransformer) transformChunkToClaude(ctx context.Context, oaiChunk *openai.ChatCompletionStreamResponse, claudeResp *claude.ClaudeResponse) error {
+	claudeResp.Id = oaiChunk.ID
+	claudeResp.Model = oaiChunk.Model
+	claudeResp.Type = "message"
+	claudeResp.Role = "assistant"
+
+	return nil
 }
 
 // Helper functions
